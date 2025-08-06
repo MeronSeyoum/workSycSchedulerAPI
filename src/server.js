@@ -52,7 +52,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Enable CORS
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000', // Allow from this origin only, you can add more origins like 'http://example.com' multiple origins separated by comma (,)
+    origin: 'https://work-syc-scheduler-api.vercel.app', // Allow from this origin only, you can add more origins like 'http://example.com' multiple origins separated by comma (,)
     //nultiple origins example : origin: ['http://example.com', 'http://example2.com']
     credentials: true,
   })
