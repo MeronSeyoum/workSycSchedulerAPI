@@ -52,8 +52,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors({
   origin: [
     'http://localhost:3000', 
-    'https://your-frontend-app.vercel.app',
-    'https://work-syc-scheduler-api.vercel.app'
+    'https://https://worksyc.vercel.app/',
+    'https://worksyc-meronseyoums-projects.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
