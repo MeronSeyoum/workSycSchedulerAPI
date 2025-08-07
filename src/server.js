@@ -49,21 +49,17 @@ app.use(i18n);
 // Serving static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Enable CORS
-// app.use(
-//   cors({
-//     origin: 'https://work-syc-scheduler-api.vercel.app', // Allow from this origin only, you can add more origins like 'http://example.com' multiple origins separated by comma (,)
-//     //nultiple origins example : origin: ['http://example.com', 'http://example2.com']
-//     credentials: true,
-//   })
-// );
-
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://work-syc-scheduler-api.vercel.app'],
+  origin: [
+    'http://localhost:3000', 
+    'https://your-frontend-app.vercel.app',
+    'https://work-syc-scheduler-api.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 const EventEmitter = require('events');
 EventEmitter.defaultMaxListeners = 15; // Set to a reasonable number
@@ -91,7 +87,9 @@ db.sequelize.sync({ force: false }).then(() => {
 });
 
 // Start server
-const port = process.env.PORT || 8080;
-app.listen(port, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 8080;
+  app.listen(port, () => {
+    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+  });
+}
