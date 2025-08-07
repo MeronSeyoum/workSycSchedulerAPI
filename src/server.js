@@ -53,7 +53,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000', 
     'https://worksyc.vercel.app/',
-    'https://worksyc-meronseyoums-projects.vercel.app'
+    'https://worksyc-kbxiiocze-meronseyoums-projects.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
