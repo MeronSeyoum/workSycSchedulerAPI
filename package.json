@@ -6,11 +6,12 @@
   "author": {
     "name": "Meron Seyoum"
   },
-  "main": "index.js",
+"main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "cross-env NODE_ENV=DEVELOPMENT nodemon ./src/index.js",
-    "start": "NODE_ENV=PRODUCTION node ./src/index.js"
+    "start": "NODE_ENV=PRODUCTION node ./src/index.js",
+     "vercel-build": "npm install && npm run build" 
   },
   "keywords": [],
   "license": "ISC",

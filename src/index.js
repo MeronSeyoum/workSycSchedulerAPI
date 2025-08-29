@@ -1,3 +1,4 @@
+// index.js
 const express = require('express');
 const morgan = require('./config/morgan');
 const path = require('path');
@@ -7,7 +8,6 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const xss = require('xss-clean');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const i18n = require('./config/i18n.config');
 const db = require('./models');
@@ -20,44 +20,42 @@ const v1Router = require('./routes/v1');
 const app = express();
 const server = http.createServer(app);
 
-// Environment configuration
+// Environment configuration - Vercel friendly
 const env = process.env.NODE_ENV || 'development';
-const envFiles = {
-  production: '.env.production',
-  staging: '.env.staging',
-  development: '.env.development'
-};
-const envFile = envFiles[env] || '.env';
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+console.log('Environment:', env);
 
-// Initialize Socket.io with proper CORS
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://worksyc.vercel.app'] 
-      : ['http://localhost:3000', 'https://worksyc.vercel.app'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
+// Load environment variables
+if (env === 'development') {
+  dotenv.config({ path: path.resolve(process.cwd(), 'config.DEVELOPMENT.env') });
+}
+// Production: Vercel automatically provides env variables
 
-app.set('io', io);
+// Initialize Socket.io only if not in serverless environment
+let io;
+if (process.env.VERCEL !== '1') {
+  io = socketIo(server, {
+    cors: {
+      origin: [
+        'http://localhost:3000', 
+        'https://worksyc.vercel.app',
+        'https://worksyc-kbxiiocze-meronseyoums-projects.vercel.app'
+      ],
+      methods: ['GET', 'POST'],
+      credentials: true
+    }
+  });
+  app.set('io', io);
+  initSocket(io);
+  console.log('Socket.io initialized');
+} else {
+  console.log('Socket.io disabled in serverless environment');
+}
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: false // Disable CSP for simplicity; configure as needed
-}));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
-  message: 'Too many requests from this IP'
-});
-app.use(limiter);
+app.use(helmet());
 
 // Development logging
-if (process.env.NODE_ENV === 'development') {
+if (env === 'development') {
   app.use(morgan.successHandler);
   app.use(morgan.errorHandler);
 }
@@ -77,9 +75,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://worksyc.vercel.app'] 
-    : ['http://localhost:3000', 'https://worksyc.vercel.app'],
+  origin: [
+    'http://localhost:3000', 
+    'https://worksyc.vercel.app',
+    'https://worksyc-kbxiiocze-meronseyoums-projects.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -88,12 +88,14 @@ app.use(cors({
 // Increase event listeners limit
 require('events').EventEmitter.defaultMaxListeners = 20;
 
-// Initialize Socket.io
-initSocket(io);
-
-// Routes
-app.get('/testing', (req, res) => {
-  res.send('testing route');
+// Test routes - CRITICAL for debugging
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API Server is running!',
+    timestamp: new Date().toISOString(),
+    environment: env
+  });
 });
 
 app.get('/health', (req, res) => {
@@ -101,59 +103,60 @@ app.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV
+    environment: env
   });
 });
 
+// API routes
 app.use('/api/v1', v1Router);
 
 // Error handling
 app.use(errorConverter);
 app.use(errorHandler);
 
-// 404 handler
-app.use((req, res) => {
+// 404 handler - must be last
+app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'API endpoint does not exist',
     code: 404,
+    requestedUrl: req.originalUrl
   });
 });
 
-// Database connection
-const connectDatabase = async () => {
-  try {
-    await db.sequelize.authenticate();
-    console.log('Database connected successfully');
-    await db.sequelize.sync({ force: false });
-  } catch (error) {
-    console.error('Database connection error:', error);
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
+// Database connection - only in non-serverless
+if (process.env.VERCEL !== '1') {
+  const connectDatabase = async () => {
+    try {
+      await db.sequelize.authenticate();
+      console.log('Database connected successfully');
+      await db.sequelize.sync({ force: false });
+    } catch (error) {
+      console.error('Database connection error:', error.message);
     }
-  }
-};
+  };
+  connectDatabase();
+}
 
-connectDatabase();
-
-// Start server
-const port = process.env.PORT || 8080;
-if (require.main === module) {
+// Start server only if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+  const port = process.env.PORT || 8080;
   server.listen(port, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
+    console.log(`Server running in ${env} mode on port ${port}`);
   });
 }
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    db.sequelize.close();
-    console.log('Process terminated');
-  });
-});
-
+// Export for Vercel
 module.exports = app;
+
+
+
+
+
+
+
+
+
 
 
 // const express = require('express');
