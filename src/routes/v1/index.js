@@ -24,7 +24,9 @@ const devRoutes = [
     route: docsRoute,
   },
 ];
-
+if (path === "/testing") {
+  return 'testing route';
+}
 const userRoutes = [
   {
     path: '/auth',
