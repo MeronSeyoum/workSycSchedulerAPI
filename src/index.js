@@ -34,9 +34,17 @@ const io = socketIo(server, { // Initialize Socket.io
 // Store io instance in app for access in routes
 app.set('io', io);
 
-dotenv.config({
-  path: path.resolve(process.cwd(), `config.${process.env.NODE_ENV || 'development'}.env`)
-});
+const envFile = process.env.NODE_ENV === 'production' 
+  ? '.env.production' 
+  : process.env.NODE_ENV === 'staging' 
+    ? '.env.staging' 
+    : '.env.development';
+
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+// dotenv.config({
+//   path: path.resolve(process.cwd(), `config.${process.env.NODE_ENV || 'development'}.env`)
+// });
 
 // Set security HTTP headers
 app.use(helmet());
@@ -84,10 +92,12 @@ EventEmitter.defaultMaxListeners = 15;
 // Initialize Socket.io
 initSocket(io); // Add this line
 
-if (path === "/testing") {
-  return 'testing route';
-}
+
   // Testing routes
+  app.get('/testing', (req, res) => {
+  res.send('testing route');
+});
+
   app.use('/api/v1', v1Router);
 
 

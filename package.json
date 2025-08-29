@@ -9,8 +9,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "cross-env NODE_ENV=DEVELOPMENT nodemon ./src/server.js",
-    "start": "NODE_ENV=PRODUCTION node ./src/server.js"
+    "dev": "cross-env NODE_ENV=DEVELOPMENT nodemon ./src/index.js",
+    "start": "NODE_ENV=PRODUCTION node ./src/index.js"
   },
   "keywords": [],
   "license": "ISC",
