@@ -1,3 +1,4 @@
+// routes/v1/index.js
 const express = require('express');
 
 const router = express.Router();
@@ -8,10 +9,14 @@ const employeeRoute = require('./employee.route');
 const clinetRoute = require('./client.route');
 const shiftRoute = require('./shift.route');
 const qrcodeRoute = require('./qrcode.route');
-const employeeShiftsRoute =require('./employeeShifts.route')
-const dashboardRoute =require('./dashboard.route')
-const usersRoute = require('./user.route')
-const attendanceRoute = require('./attendance.route')
+const employeeShiftsRoute = require('./employeeShifts.route');
+const dashboardRoute = require('./dashboard.route');
+const usersRoute = require('./user.route');
+const attendanceRoute = require('./attendance.route');
+const employeeDashboardRoute = require('./employeeDashboard.route');
+const notificationsRoute = require('./notification.route');
+const chatRoute = require('./chat.route'); // Add this line
+const geofencesRoute =require('./geofence.route')
 
 const devRoutes = [
   {
@@ -57,7 +62,24 @@ const userRoutes = [
     path: '/attendance',
     route: attendanceRoute,
   },
+  {
+    path: '/employeesDashboard',
+    route: employeeDashboardRoute,
+  },
+  {
+    path: "/notifications",
+    route: notificationsRoute,
+  },
+  {
+path: "/geofences",
+route: geofencesRoute,
+  },
+  {
+    path: "/chat", // Add this line
+    route: chatRoute, // Add this line
+  }
 ];
+
 userRoutes.forEach((route) => {
   router.use(route.path, route.route);
 });

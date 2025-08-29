@@ -32,7 +32,6 @@ const signIn = catchAsync(async (req, res) => {
     ...tokens,
     user: authUser,
   };
-  console.log("User data: ", data)
   res.status(httpStatus.OK).send({ message: res.__('userSignin'), data: data });
 });
 

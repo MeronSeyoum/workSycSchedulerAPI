@@ -84,6 +84,21 @@ module.exports = (sequelize) => {
       foreignKey: 'assigned_by',
       as: 'assigned_shifts',
     });
+    User.hasMany(models.Notification, {
+      foreignKey: 'userId',
+      as: 'notifications',
+      onDelete: 'CASCADE'
+    });
+
+    User.hasMany(models.Chat, {
+    foreignKey: 'sender_id',
+    as: 'sent_messages',
+  });
+  
+  User.hasMany(models.Chat, {
+    foreignKey: 'recipient_id',
+    as: 'received_messages',
+  });
   };
 
   return User;

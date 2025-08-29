@@ -1,5 +1,5 @@
 // src/controllers/shift/shift.controller.js
-const { Shift, EmployeeShift, Client, Employee,User, sequelize } = require('../../models');
+const { Shift, EmployeeShift, Client, Employee, User, Notification , sequelize } = require('../../models');
 const { Op } = require('sequelize');
 const dayjs = require('dayjs');
 
@@ -314,6 +314,132 @@ exports.getById = async (req, res) => {
   }
 };
 
+// exports.createShiftWithEmployees = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+  
+//   try {
+//     const { client_id, date, start_time, end_time, shift_type, employee_ids = [], notes } = req.body;
+//     const assigned_by = req.user.id;
+
+//     // Validate required fields
+//     if (!client_id || !date || !start_time || !end_time || !shift_type) {
+//       await transaction.rollback();
+//       return res.status(400).json({ error: 'Missing required fields' });
+//     }
+
+//     // Validate time
+//      if (dayjs(end_time, 'HH:mm').isBefore(dayjs(start_time, 'HH:mm'))) {
+//       await transaction.rollback();
+//       return res.status(400).json({ error: 'End time must be after start time' });
+//     }
+
+//     // Check client exists
+//     const client = await Client.findByPk(client_id, { transaction });
+//     if (!client) {
+//       await transaction.rollback();
+//       return res.status(404).json({ error: 'Client not found' });
+//     }
+
+//     // Create shift
+//     const shift = await Shift.create({
+//       date,
+//       start_time,
+//       end_time,
+//       client_id,
+//       shift_type,
+//       created_by: assigned_by,
+//       notes
+//     }, { transaction });
+
+//     const conflictErrors = [];
+//     const employeeShiftsData = [];
+//     const uniqueEmployeeIds = [...new Set(employee_ids)];
+
+//     // Process each employee assignment
+//     for (const employee_id of uniqueEmployeeIds) {
+//       const employee = await Employee.findByPk(employee_id, { 
+//         transaction,
+//         include: [{
+//           model: User,
+//           as: 'user',
+//           attributes: ['first_name', 'last_name']
+//         }]
+//       });
+
+//       if (!employee) {
+//         conflictErrors.push(`Employee ${employee_id} not found`);
+//         continue;
+//       }
+
+//       // Check employee assignment to location
+//       if (!employee.assigned_locations?.includes(client.business_name)) {
+//         conflictErrors.push(
+//           `Employee ${employee.user?.first_name} ${employee.user?.last_name} is not assigned to this location`
+//         );
+//         continue;
+//       }
+
+//       employeeShiftsData.push({
+//         employee_id,
+//         shift_id: shift.id,
+//         assigned_by,
+//         status: 'scheduled',
+//         notes
+//       });
+//     }
+
+//     // Handle complete failure case
+//     if (conflictErrors.length > 0 && employeeShiftsData.length === 0) {
+//       await transaction.rollback();
+//       return res.status(400).json({ 
+//         error: 'All employee assignments failed',
+//         details: conflictErrors 
+//       });
+//     }
+
+//     // Create employee shifts
+//     const employeeShifts = await EmployeeShift.bulkCreate(employeeShiftsData, { 
+//       transaction,
+//       returning: true
+//     });
+
+//     await transaction.commit();
+
+//     // Prepare response
+//     const response = {
+//      success: true,
+//       message: 'Shift created successfully',
+//       data: {
+//        ...formatShiftResponse(shift),
+//       employees: employeeShifts.map(es => ({
+//        assignment_id: es.id,
+//          employee_id: es.employee_id,
+//          status: es.status
+//        }))
+// }
+//      };
+
+//     // Add warnings if partial success
+//      if (conflictErrors.length > 0) {
+//        response.warnings = conflictErrors;
+//        return res.status(207).json(response);
+//      }
+
+//      res.status(201).json(response);
+
+
+    
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Shift creation error:', error);
+//     res.status(500).json({ 
+//       error: 'Failed to create shift',
+//       details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+//     });
+//   }
+// };
+
+
 exports.createShiftWithEmployees = async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -328,7 +454,7 @@ exports.createShiftWithEmployees = async (req, res) => {
     }
 
     // Validate time
-     if (dayjs(end_time, 'HH:mm').isBefore(dayjs(start_time, 'HH:mm'))) {
+    if (dayjs(end_time, 'HH:mm').isBefore(dayjs(start_time, 'HH:mm'))) {
       await transaction.rollback();
       return res.status(400).json({ error: 'End time must be after start time' });
     }
@@ -340,6 +466,8 @@ exports.createShiftWithEmployees = async (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
 
+    console.log("shift date : ", date);
+
     // Create shift
     const shift = await Shift.create({
       date,
@@ -348,11 +476,12 @@ exports.createShiftWithEmployees = async (req, res) => {
       client_id,
       shift_type,
       created_by: assigned_by,
-      notes
+      notes,
     }, { transaction });
 
     const conflictErrors = [];
     const employeeShiftsData = [];
+    const notifications = [];
     const uniqueEmployeeIds = [...new Set(employee_ids)];
 
     // Process each employee assignment
@@ -362,7 +491,7 @@ exports.createShiftWithEmployees = async (req, res) => {
         include: [{
           model: User,
           as: 'user',
-          attributes: ['first_name', 'last_name']
+          attributes: ['id', 'first_name', 'last_name']
         }]
       });
 
@@ -379,13 +508,31 @@ exports.createShiftWithEmployees = async (req, res) => {
         continue;
       }
 
-      employeeShiftsData.push({
+      // Create employee shift assignment
+      const employeeShift = await EmployeeShift.create({
         employee_id,
         shift_id: shift.id,
         assigned_by,
         status: 'scheduled',
         notes
-      });
+      }, { transaction });
+
+      employeeShiftsData.push(employeeShift);
+
+      // Create notification for employee
+      try {
+        const notification = await createShiftAssignmentNotification(
+          employee_id,
+          shift.id,
+          transaction // Pass the transaction
+        );
+        notifications.push(notification);
+      } catch (notificationError) {
+        console.error('Failed to create notification:', notificationError);
+        conflictErrors.push(
+          `Failed to notify employee ${employee.user?.first_name} ${employee.user?.last_name}`
+        );
+      }
     }
 
     // Handle complete failure case
@@ -397,37 +544,33 @@ exports.createShiftWithEmployees = async (req, res) => {
       });
     }
 
-    // Create employee shifts
-    const employeeShifts = await EmployeeShift.bulkCreate(employeeShiftsData, { 
-      transaction,
-      returning: true
-    });
-
     await transaction.commit();
 
     // Prepare response
     const response = {
-     success: true,
+      success: true,
       message: 'Shift created successfully',
       data: {
-       ...formatShiftResponse(shift),
-      employees: employeeShifts.map(es => ({
-       assignment_id: es.id,
-         employee_id: es.employee_id,
-         status: es.status
-       }))
-}
-     };
+        ...formatShiftResponse({
+          ...shift.get({ plain: true }),
+          employee_shifts: employeeShiftsData,
+          client
+        }),
+        employees: employeeShiftsData.map(es => ({
+          assignment_id: es.id,
+          employee_id: es.employee_id,
+          status: es.status
+        }))
+      }
+    };
 
     // Add warnings if partial success
-     if (conflictErrors.length > 0) {
-       response.warnings = conflictErrors;
-       return res.status(207).json(response);
-     }
+    if (conflictErrors.length > 0) {
+      response.warnings = conflictErrors;
+      return res.status(207).json(response);
+    }
 
-     res.status(201).json(response);
-
-
+    res.status(201).json(response);
     
   } catch (error) {
     await transaction.rollback();
@@ -438,6 +581,8 @@ exports.createShiftWithEmployees = async (req, res) => {
     });
   }
 };
+
+
 
 exports.createRecurring = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -810,5 +955,55 @@ exports.moveShiftToDate = async (req, res) => {
       message: 'Failed to move shift',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+
+const createShiftAssignmentNotification = async (employeeId, shiftId, transaction) => {
+  try {
+    const employee = await Employee.findByPk(employeeId, {
+      transaction,
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['id']
+      }]
+    });
+
+    const shift = await Shift.findByPk(shiftId, {
+      transaction,
+      include: [{
+        model: Client,
+        as: 'client',
+        attributes: ['business_name', ]
+      }]
+    });
+
+    if (!employee || !shift) {
+      throw new Error('Employee or Shift not found');
+    }
+
+    const notification = await Notification.create({
+      userId: employee.user.id,
+      employeeId: employee.id,
+      tenantId: shift.client.tenant_id,
+      type: 'assignment',
+      title: 'New Shift Assigned',
+      message: `You have been assigned a shift on ${dayjs(shift.date).format('MMMM D, YYYY')} at ${shift.start_time} at ${shift.client.business_name}.`,
+      relatedEntityType: 'shift',
+      relatedEntityId: shift.id,
+      metadata: {
+        shiftId: shift.id,
+        date: shift.date,
+        startTime: shift.start_time,
+        endTime: shift.end_time,
+        clientName: shift.client.business_name
+      }
+    }, { transaction });
+
+    return notification;
+  } catch (error) {
+    console.error('Error creating shift assignment notification:', error);
+    throw error;
   }
 };

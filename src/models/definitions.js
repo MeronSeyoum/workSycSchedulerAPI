@@ -16,6 +16,7 @@ const definitions = (sequelize, Sequelize) => {
   db.QRCode = require('./QRCode.model')(sequelize, Sequelize);
   db.Attendance = require('./Attendance.model')(sequelize, Sequelize);
   db.EmployeeShift = require('./EmployeeShift.model')(sequelize, Sequelize);
+   db.Notification = require('./Notification.model')(sequelize, Sequelize);
 
   // ====================
   // 1. USER ASSOCIATIONS
@@ -176,6 +177,24 @@ const definitions = (sequelize, Sequelize) => {
     as: 'client'
   });
 
+  // ========================
+  // 10. NOTIFICATION ASSOCIATIONS
+  // ========================
+  db.Notification.belongsTo(db.User, {
+    foreignKey: 'userId',
+    as: 'user'
+  });
+
+  db.Notification.belongsTo(db.Employee, {
+    foreignKey: 'employeeId',
+    as: 'employee'
+  });
+
+  db.Notification.belongsTo(db.Shift, {
+    foreignKey: 'shiftId',
+    as: 'shift'
+  });
+  
   return db;
 };
 

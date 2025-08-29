@@ -3,8 +3,6 @@ const dotenv = require('dotenv');
 const path = require('path');
 const definitions = require('./definitions');
 
-
-
 // Load environment variables
 dotenv.config({
   path: path.resolve(process.cwd(), `config.${process.env.NODE_ENV}.env`),
@@ -22,9 +20,9 @@ if (!DB_HOST || !DB_USER || !DB_PORT || !DB_PASSWORD || !DB_DATABASE) {
 const sequelize = new Sequelize(DB_DATABASE, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   port: DB_PORT,
-   timezone: 'UTC', // Force UTC timezone
+  timezone: '-07:00',
   dialect: 'postgres',
-dialectOptions: {
+  dialectOptions: {
     ssl: {
       require: true,
       rejectUnauthorized: false,
@@ -35,14 +33,14 @@ dialectOptions: {
     max: 5,
     min: 0,
     acquire: 30000,
-    idle: 10000
+    idle: 10000,
   },
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   define: {
     underscored: true,
     timestamps: true,
-    freezeTableName: true
-  }
+    freezeTableName: true,
+  },
 });
 
 // Load all models
@@ -53,15 +51,14 @@ const db = definitions(sequelize, Sequelize);
   try {
     await sequelize.authenticate();
     console.log('Database connection initiate and established successfully');
-    
+
     const syncOptions = {
       force: process.env.DB_FORCE_SYNC === 'true',
-      alter: process.env.DB_ALTER_SYNC === 'true'
+      alter: process.env.DB_ALTER_SYNC === 'true',
     };
-    
+
     await sequelize.sync(syncOptions);
     console.log(`Database synchronized (force: ${syncOptions.force}, alter: ${syncOptions.alter})`);
-    
   } catch (error) {
     console.error('Database connection failed:', error.message);
     process.exit(1);
@@ -83,5 +80,5 @@ process.on('SIGINT', async () => {
 module.exports = {
   ...db,
   sequelize,
-  Sequelize
+  Sequelize,
 };

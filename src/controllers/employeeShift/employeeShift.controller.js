@@ -4,6 +4,52 @@ const dayjs = require('dayjs');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
 dayjs.extend(customParseFormat);
 
+
+/**
+ * Calculates the appropriate attendance status based on clock-in/out times and shift schedule
+ * @param {Date} clockInTime - Employee's clock-in time
+ * @param {Date|null} clockOutTime - Employee's clock-out time (null if not clocked out yet)
+ * @param {Shift|null} shift - The scheduled shift details (null if no shift assigned)
+ * @returns {string} - Appropriate attendance status
+ */
+const calculateAttendanceStatus = (clockInTime, clockOutTime, shift) => {
+  // If no shift is assigned, default to 'present' status
+  if (!shift) return 'present'; 
+  
+  // Create Date objects from shift times
+  const shiftStart = new Date(`${shift.date}T${shift.start_time}`);
+  const shiftEnd = new Date(`${shift.date}T${shift.end_time}`);
+  
+  // Define thresholds (15 minutes late, 30 minutes early departure)
+  const lateThreshold = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const earlyDepartureThreshold = 30 * 60 * 1000; // 30 minutes in milliseconds
+  
+  // Determine if employee is late or left early
+  const isLate = clockInTime > shiftStart.getTime() + lateThreshold;
+  const isEarlyDeparture = clockOutTime && 
+                         (clockOutTime < shiftEnd.getTime() - earlyDepartureThreshold);
+  
+  // If not clocked out yet, return pending or late status
+  if (!clockOutTime) {
+    return isLate ? 'late_arrival' : 'pending';
+  }
+  
+  // Handle combined late arrival and early departure
+  if (isLate && isEarlyDeparture) return 'late_and_early';
+  if (isLate) return 'late_arrival';
+  if (isEarlyDeparture) return 'early_departure';
+  
+  // Check for partial attendance (worked less than 50% of scheduled shift)
+  const scheduledDuration = shiftEnd - shiftStart;
+  const actualDuration = clockOutTime - clockInTime;
+  if (actualDuration < scheduledDuration * 0.5) {
+    return 'partial_attendance';
+  }
+  
+  // Default to present if all checks pass
+  return 'present';
+};
+
 // Helper to format shift response
 const formatShiftResponse = (shift) => {
   return {
@@ -37,6 +83,7 @@ const getEmployeeId = async (userId) => {
   if (!employee) throw new Error('Employee not found for user');
   return employee.id;
 };
+
 
 exports.getEmployeeShifts = async (req, res) => {
   try {
@@ -114,7 +161,7 @@ exports.getEmployeeShifts = async (req, res) => {
         attendance: plainShift.attendances?.[0] || null
       };
     });
-    console.log(formattedShifts)
+    
     res.json({
       success: true,
       data: formattedShifts
@@ -182,45 +229,144 @@ exports.getShiftDetails = async (req, res) => {
   }
 };
 
+// exports.clockIn = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+//   console.log("the clockin process has started")
+//   try {
+//     const employeeId = await getEmployeeId(req.user.id);
+//     const { shiftId } = req.params;
+//     const { method = 'qrcode', qrcode, notes
+//       // , latitude, longitude 
+//     } = req.body;
+
+//     // Verify shift assignment
+//     const employeeShift = await EmployeeShift.findOne({
+//       where: {
+//         employee_id: employeeId,
+//         shift_id: shiftId,
+//         status: 'scheduled'
+//       },
+//       transaction
+//     });
+
+//     if (!employeeShift) {
+//       throw new Error('Shift not available for clock-in');
+//     }
+
+//     // Check if already clocked in
+//     const existingAttendance = await Attendance.findOne({
+//       where: {
+//         employee_id: employeeId,
+//         shift_id: shiftId
+//       },
+//       transaction
+//     });
+
+//     if (existingAttendance?.clock_in_time) {
+//       throw new Error('Already clocked in for this shift');
+//     }
+
+//     // QR code verification if provided
+//     if (qrcode) {
+//       const qrCode = await QRCode.findOne({
+//         where: {
+//           shift_id: shiftId,
+//           code_value: qrcode,
+//           expires_at: { [Op.gt]: new Date() }
+//         },
+//         transaction
+//       });
+
+//       if (!qrCode) {
+//         throw new Error('Invalid or expired QR code');
+//       }
+//     }
+
+//     // Create or update attendance record
+//     const attendanceData = {
+//       employee_id: employeeId,
+//       shift_id: shiftId,
+//       clock_in_time: new Date(),
+//       hours: 0.0,
+//       method,
+//       status: 'present',
+//       notes,
+//       // clock_in_latitude: latitude,
+//       // clock_in_longitude: longitude
+//     };
+
+//     const attendance = existingAttendance 
+//       ? await existingAttendance.update(attendanceData, { transaction })
+//       : await Attendance.create(attendanceData, { transaction });
+
+//     // Update shift status
+//     await employeeShift.update({ status: 'in_progress' }, { transaction });
+
+//     await transaction.commit();
+
+//     res.json({
+//       success: true,
+//       data: {
+//         clock_in_time: attendance.clock_in_time,
+//         status: 'in_progress'
+//       }
+//     });
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Error during clock in:', error);
+//     const status = error.message.includes('not found') ? 404 : 400;
+//     res.status(status).json({ 
+//       error: error.message || 'Failed to clock in',
+//       details: process.env.NODE_ENV === 'development' ? error.stack : null
+//     });
+//   }
+// };
+
+
 exports.clockIn = async (req, res) => {
   const transaction = await sequelize.transaction();
-  console.log("the clockin process has started")
   try {
     const employeeId = await getEmployeeId(req.user.id);
     const { shiftId } = req.params;
-    const { method = 'qrcode', qrcode, notes
-      // , latitude, longitude 
-    } = req.body;
+    const { method = 'qrcode', qrcode, notes } = req.body;
 
-    // Verify shift assignment
-    const employeeShift = await EmployeeShift.findOne({
-      where: {
-        employee_id: employeeId,
-        shift_id: shiftId,
-        status: 'scheduled'
-      },
+    // Get shift details with all necessary information
+    const shift = await Shift.findOne({
+      where: { id: shiftId },
+      include: [{
+        model: EmployeeShift,
+        as: 'employee_shifts',
+        where: { employee_id: employeeId },
+        required: true
+      }],
       transaction
     });
 
-    if (!employeeShift) {
-      throw new Error('Shift not available for clock-in');
+    if (!shift) {
+      throw new Error('Shift not found or not assigned to employee');
     }
 
-    // Check if already clocked in
+    // Verify shift is in a clock-in-able state
+    if (!['scheduled', 'in_progress'].includes(shift.employee_shifts[0].status)) {
+      throw new Error('Shift is not available for clock-in');
+    }
+
+    // Check for existing attendance record
     const existingAttendance = await Attendance.findOne({
       where: {
         employee_id: employeeId,
-        shift_id: shiftId
+        shift_id: shiftId,
+        clock_out_time: null
       },
       transaction
     });
 
-    if (existingAttendance?.clock_in_time) {
-      throw new Error('Already clocked in for this shift');
+    if (existingAttendance) {
+      throw new Error('Already has an active clock-in for this shift');
     }
 
     // QR code verification if provided
-    if (qrcode) {
+    if (method === 'qrcode' && qrcode) {
       const qrCode = await QRCode.findOne({
         where: {
           shift_id: shiftId,
@@ -235,25 +381,37 @@ exports.clockIn = async (req, res) => {
       }
     }
 
-    // Create or update attendance record
-    const attendanceData = {
+    // Calculate status based on current time and shift schedule
+    const now = new Date();
+    const status = calculateAttendanceStatus(now, null, shift);
+
+    // Create attendance record
+    const attendance = await Attendance.create({
       employee_id: employeeId,
       shift_id: shiftId,
-      clock_in_time: new Date(),
+      clock_in_time: now,
       hours: 0.0,
       method,
-      status: 'present',
+      status,
       notes,
+      // Include location data if available
       // clock_in_latitude: latitude,
       // clock_in_longitude: longitude
-    };
+    }, { transaction });
 
-    const attendance = existingAttendance 
-      ? await existingAttendance.update(attendanceData, { transaction })
-      : await Attendance.create(attendanceData, { transaction });
-
-    // Update shift status
-    await employeeShift.update({ status: 'in_progress' }, { transaction });
+    // Update shift status to in_progress if it was scheduled
+    if (shift.employee_shifts[0].status === 'scheduled') {
+      await EmployeeShift.update(
+        { status: 'in_progress' },
+        { 
+          where: { 
+            employee_id: employeeId, 
+            shift_id: shiftId 
+          },
+          transaction
+        }
+      );
+    }
 
     await transaction.commit();
 
@@ -261,7 +419,8 @@ exports.clockIn = async (req, res) => {
       success: true,
       data: {
         clock_in_time: attendance.clock_in_time,
-        status: 'in_progress'
+        status: attendance.status,
+        shift_status: 'in_progress'
       }
     });
   } catch (error) {
@@ -269,30 +428,35 @@ exports.clockIn = async (req, res) => {
     console.error('Error during clock in:', error);
     const status = error.message.includes('not found') ? 404 : 400;
     res.status(status).json({ 
+      success: false,
       error: error.message || 'Failed to clock in',
       details: process.env.NODE_ENV === 'development' ? error.stack : null
     });
   }
 };
-
 exports.clockOut = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const employeeId = await getEmployeeId(req.user.id);
     const { shiftId } = req.params;
-    const { method = 'qrcode', notes, 
-      // latitude, longitude 
-      } = req.body;
-    // Verify shift is in progress
-    const employeeShift = await EmployeeShift.findOne({
-      where: {
-        employee_id: employeeId,
-        shift_id: shiftId,
-        status: 'in_progress'
-      },
+    const { method = 'qrcode', notes } = req.body;
+
+    // Get shift details with all necessary information
+    const shift = await Shift.findOne({
+      where: { id: shiftId },
+      include: [{
+        model: EmployeeShift,
+        as: 'employee_shifts',
+        where: { 
+          employee_id: employeeId,
+          status: 'in_progress' // Only allow clock-out from in-progress shifts
+        },
+        required: true
+      }],
       transaction
     });
-    if (!employeeShift) {
+
+    if (!shift) {
       throw new Error('No active shift found to clock out');
     }
 
@@ -301,36 +465,48 @@ exports.clockOut = async (req, res) => {
       where: {
         employee_id: employeeId,
         shift_id: shiftId,
-        clock_in_time: { [Op.ne]: null }
+        clock_in_time: { [Op.ne]: null },
+        clock_out_time: null // Ensure we only find open attendance records
       },
       transaction
     });
 
     if (!attendance) {
-      throw new Error('No clock-in record found');
+      throw new Error('No active clock-in record found for this shift');
     }
 
-    if (attendance.clock_out_time) {
-      throw new Error('Already clocked out for this shift');
-    }
-
-    // Calculate hours worked
+    // Calculate hours worked and determine final status
     const clockOutTime = new Date();
     const hoursWorked = (clockOutTime - attendance.clock_in_time) / (1000 * 60 * 60);
+    const finalStatus = calculateAttendanceStatus(
+      attendance.clock_in_time,
+      clockOutTime,
+      shift
+    );
 
     // Update attendance record
     await attendance.update({
       clock_out_time: clockOutTime,
-      hours: hoursWorked,
-      status: 'present',
+      hours: parseFloat(hoursWorked.toFixed(2)), // Store with 2 decimal places
+      status: finalStatus,
       method,
       notes,
+      // Include location data if available
       // clock_out_latitude: latitude,
       // clock_out_longitude: longitude
     }, { transaction });
 
-    // Update shift status
-    await employeeShift.update({ status: 'completed' }, { transaction });
+    // Update shift status to completed
+    await EmployeeShift.update(
+      { status: 'completed' },
+      { 
+        where: { 
+          employee_id: employeeId, 
+          shift_id: shiftId 
+        },
+        transaction
+      }
+    );
 
     await transaction.commit();
 
@@ -339,8 +515,9 @@ exports.clockOut = async (req, res) => {
       data: {
         clock_in_time: attendance.clock_in_time,
         clock_out_time: clockOutTime,
-        hours: hoursWorked,
-        status: 'completed'
+        hours_worked: parseFloat(hoursWorked.toFixed(2)),
+        status: finalStatus,
+        shift_status: 'completed'
       }
     });
   } catch (error) {
@@ -348,11 +525,91 @@ exports.clockOut = async (req, res) => {
     console.error('Error during clock out:', error);
     const status = error.message.includes('not found') ? 404 : 400;
     res.status(status).json({ 
+      success: false,
       error: error.message || 'Failed to clock out',
       details: process.env.NODE_ENV === 'development' ? error.stack : null
     });
   }
 };
+
+// exports.clockOut = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+//   try {
+//     const employeeId = await getEmployeeId(req.user.id);
+//     const { shiftId } = req.params;
+//     const { method = 'qrcode', notes, 
+//       // latitude, longitude 
+//       } = req.body;
+//     // Verify shift is in progress
+//     const employeeShift = await EmployeeShift.findOne({
+//       where: {
+//         employee_id: employeeId,
+//         shift_id: shiftId,
+//         status: 'in_progress'
+//       },
+//       transaction
+//     });
+//     if (!employeeShift) {
+//       throw new Error('No active shift found to clock out');
+//     }
+
+//     // Get existing attendance record
+//     const attendance = await Attendance.findOne({
+//       where: {
+//         employee_id: employeeId,
+//         shift_id: shiftId,
+//         clock_in_time: { [Op.ne]: null }
+//       },
+//       transaction
+//     });
+
+//     if (!attendance) {
+//       throw new Error('No clock-in record found');
+//     }
+
+//     if (attendance.clock_out_time) {
+//       throw new Error('Already clocked out for this shift');
+//     }
+
+//     // Calculate hours worked
+//     const clockOutTime = new Date();
+//     const hoursWorked = (clockOutTime - attendance.clock_in_time) / (1000 * 60 * 60);
+
+//     // Update attendance record
+//     await attendance.update({
+//       clock_out_time: clockOutTime,
+//       hours: hoursWorked,
+//       status: 'present',
+//       method,
+//       notes,
+//       // clock_out_latitude: latitude,
+//       // clock_out_longitude: longitude
+//     }, { transaction });
+
+//     // Update shift status
+//     await employeeShift.update({ status: 'completed' }, { transaction });
+
+//     await transaction.commit();
+
+//     res.json({
+//       success: true,
+//       data: {
+//         clock_in_time: attendance.clock_in_time,
+//         clock_out_time: clockOutTime,
+//         hours: hoursWorked,
+//         status: 'completed'
+//       }
+//     });
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Error during clock out:', error);
+//     const status = error.message.includes('not found') ? 404 : 400;
+//     res.status(status).json({ 
+//       error: error.message || 'Failed to clock out',
+//       details: process.env.NODE_ENV === 'development' ? error.stack : null
+//     });
+//   }
+// };
 
 exports.getShiftQrCode = async (req, res) => {
   try {

@@ -40,9 +40,18 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     status: {
-      type: DataTypes.ENUM('present', 'late', 'absent', 'early'),
+      type: DataTypes.ENUM('pending',
+    'present',
+    'late_arrival',
+    'early_departure',
+    'late_and_early',
+    'absent',
+    'on_leave',
+    'partial_attendance',
+    'no_show',
+    'excused_absence'),
       allowNull: false,
-      defaultValue: 'present'
+      defaultValue: 'pending'
     },
     notes: {
       type: DataTypes.TEXT,
