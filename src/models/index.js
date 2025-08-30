@@ -5,6 +5,7 @@ const definitions = require('./definitions');
 
 // Load environment variables
 const env = process.env.NODE_ENV || 'development';
+const isVercel = process.env.VERCEL === '1';
 
 try {
   dotenv.config({
@@ -18,10 +19,14 @@ try {
 // Check if we have DATABASE_URL or individual config
 let sequelize;
 
+// Explicitly require pg package
+const pg = require('pg');
+
 if (process.env.DATABASE_URL) {
   // Use DATABASE_URL (for production)
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
+    dialectModule: pg, // Explicitly use pg module
     dialectOptions: {
       ssl: {
         require: true,
@@ -34,7 +39,7 @@ if (process.env.DATABASE_URL) {
       acquire: 30000,
       idle: 10000,
     },
-    logging: false, // Disable logging in production
+    logging: false,
     define: {
       underscored: true,
       timestamps: true,
@@ -56,6 +61,7 @@ if (process.env.DATABASE_URL) {
     port: DB_PORT,
     timezone: '-07:00',
     dialect: 'postgres',
+    dialectModule: pg, // Explicitly use pg module
     dialectOptions: {
       ssl: {
         require: process.env.DB_SSL === 'true',
@@ -92,11 +98,22 @@ const db = definitions(sequelize, Sequelize);
       alter: process.env.DB_ALTER_SYNC === 'true' && process.env.NODE_ENV === 'development',
     };
 
-    await sequelize.sync(syncOptions);
-    console.log(`Database synchronized (force: ${syncOptions.force}, alter: ${syncOptions.alter})`);
+    // In production/vercel, only sync if needed
+    if (process.env.NODE_ENV === 'production' || isVercel) {
+      console.log('Skipping sync in production/Vercel environment');
+    } else {
+      await sequelize.sync(syncOptions);
+      console.log(`Database synchronized (force: ${syncOptions.force}, alter: ${syncOptions.alter})`);
+    }
   } catch (error) {
     console.error('Database connection failed:', error.message);
-    process.exit(1);
+    
+    // In production/Vercel, don't crash the app
+    if (process.env.NODE_ENV === 'production' || isVercel) {
+      console.log('Continuing without database connection');
+    } else {
+      process.exit(1);
+    }
   }
 })();
 
@@ -117,7 +134,6 @@ module.exports = {
   sequelize,
   Sequelize,
 };
-
 
 // const Sequelize = require('sequelize');
 // const dotenv = require('dotenv');
