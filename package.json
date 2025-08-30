@@ -7,12 +7,16 @@
     "name": "Meron Seyoum"
   },
 "main": "index.js",
+
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "cross-env NODE_ENV=DEVELOPMENT nodemon ./index.js",
-    "start": "NODE_ENV=PRODUCTION node ./index.js",
-     "vercel-build": "npm install && npm run build" 
+    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "start": "node index.js",
+    "vercel-build": "npm install && echo 'Build complete'"
   },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+
   "keywords": [],
   "license": "ISC",
   "dependencies": {
