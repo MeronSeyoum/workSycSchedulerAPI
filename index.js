@@ -93,7 +93,7 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: '🚀 Bravo API Server is running!',
+    message: '🚀 WorkShift API Server is running!',
     timestamp: new Date().toISOString(),
     environment: env,
     vercel: isVercel
