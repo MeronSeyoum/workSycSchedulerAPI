@@ -8,14 +8,13 @@
   },
 "main": "index.js",
 
+  
   "scripts": {
-    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "dev": "nodemon index.js",
     "start": "node index.js",
-    "vercel-build": "npm install && echo 'Build complete'"
-  },
-  "engines": {
-    "node": ">=14.0.0"
-  },
+    "vercel-build": "npm install"
+  
+},
 
   "keywords": [],
   "license": "ISC",
