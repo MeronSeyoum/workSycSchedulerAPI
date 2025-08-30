@@ -9,7 +9,7 @@ dotenv.config({
 });
 
 // Validate required database configuration
-const { DB_HOST, DB_USER, DB_PORT, DB_PASSWORD, DB_DATABASE, DB_SSL } = process.env;
+const { DB_HOST, DB_USER, DB_PORT, DB_PASSWORD, DB_DATABASE } = process.env;
 
 if (!DB_HOST || !DB_USER || !DB_PORT || !DB_PASSWORD || !DB_DATABASE) {
   console.error('Missing required database configuration in environment variables');

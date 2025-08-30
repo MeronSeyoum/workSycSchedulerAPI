@@ -131,14 +131,56 @@ const connectDatabase = async () => {
     await db.sequelize.authenticate();
     console.log('✅ Database connected successfully');
     
-    // Sync models (safe for production)
-    await db.sequelize.sync({ 
-      force: false, // NEVER true in production
-      alter: env === 'development' // Auto-update tables in dev only
-    });
-    console.log('✅ Database synced');
+    // Sync models in correct order to avoid foreign key issues
+    // First sync tables without foreign key dependencies
+    await db.sequelize.query('SET CONSTRAINTS ALL DEFERRED');
+    
+    // Sync tables in proper order based on dependencies
+    const modelNames = Object.keys(db.sequelize.models);
+    
+    // Define the correct order for table synchronization
+    const syncOrder = [
+      'User',        // Base table with no dependencies
+      'Client',      // Depends on User
+      'Employee',    // Depends on User
+      'Shift',       // Depends on Client and User
+      'Geofence',    // Depends on Client
+      'QRCode',      // Depends on Client
+      'Token',       // Depends on User
+      'EmployeeShift', // Depends on Employee and Shift
+      'Attendance',  // Depends on Employee and Shift
+      'Notification' // Depends on User
+    ];
+    
+    // Filter to only include models that exist
+    const modelsToSync = syncOrder.filter(modelName => 
+      modelNames.includes(modelName)
+    );
+    
+    // Sync models in the correct order
+    for (const modelName of modelsToSync) {
+      console.log(`🔄 Syncing model: ${modelName}`);
+      await db.sequelize.models[modelName].sync({ 
+        force: false, 
+        alter: env === 'development' 
+      });
+    }
+    
+    console.log('✅ Database synced successfully');
   } catch (error) {
     console.error('❌ Database connection error:', error.message);
+    
+    // Try a safer sync approach if the ordered sync fails
+    if (error.name.includes('ForeignKey')) {
+      console.log('🔄 Retrying with basic sync (no alter)...');
+      try {
+        await db.sequelize.sync({ force: false, alter: false });
+        console.log('✅ Database synced with safe options');
+      } catch (safeError) {
+        console.error('❌ Safe sync also failed:', safeError.message);
+      }
+    }
+    
     // In production, you might want to exit if DB connection fails
     if (env === 'production' && !isVercel) {
       process.exit(1);
@@ -149,6 +191,19 @@ const connectDatabase = async () => {
 // Connect to database if not in serverless environment
 if (!isVercel) {
   connectDatabase();
+}
+
+// Start the server (only if not in Vercel environment)
+if (!isVercel) {
+  const PORT = process.env.PORT || 8080;
+  
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📊 Environment: ${env}`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  });
+} else {
+  console.log('ℹ️  Running in Vercel environment - serverless mode');
 }
 
 // Export for Vercel serverless functions

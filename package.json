@@ -8,10 +8,10 @@
   },
   "main": "index.js",
  "scripts": {
-  "dev": "cross-env NODE_ENV=development nodemon index.js",
-  "start": "cross-env NODE_ENV=production node index.js",
-  "vercel-build": "npm install"
-},
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "cross-env NODE_ENV=DEVELOPMENT nodemon ./src/server.js",
+    "start": "NODE_ENV=PRODUCTION node ./src/server.js"
+  },
   "keywords": [
     "express",
     "api",
@@ -36,7 +36,7 @@
     "joi": "^17.9.2",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
-    "pg": "^8.11.0",
+    "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "qrcode": "^1.5.4",
     "sequelize": "^6.31.1",

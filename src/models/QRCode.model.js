@@ -11,10 +11,10 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       unique: true,
-      references: {
-        model: 'Client',
-        key: 'id'
-      }
+      // references: {
+      //   model: 'Client',
+      //   key: 'id'
+      // }
     },
     code_value: {
       type: DataTypes.STRING,
@@ -40,10 +40,10 @@ module.exports = (sequelize) => {
 
   // Class Methods
 QRCode.associate = (models) => {
- db.QRCode.belongsTo(db.Client, {
-  foreignKey: 'client_id',
-  as: 'client'
-});
+  QRCode.belongsTo(models.Client, {
+    foreignKey: 'client_id',
+    as: 'client'
+  });
 };
 
   return QRCode;
