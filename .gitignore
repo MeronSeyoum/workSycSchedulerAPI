@@ -3,3 +3,4 @@
 # Environment varibales
 config.DEVELOPMENT.env
 config.DEVELOPMENT.env.example
+.vercel
