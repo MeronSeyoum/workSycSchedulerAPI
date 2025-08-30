@@ -11,8 +11,6 @@ const { errorConverter, errorHandler } = require('./src/middlewares/error');
 const i18n = require('./src/config/i18n.config');
 const db = require('./src/models');
 const http = require('http');
-const socketIo = require('socket.io');
-const { initSocket } = require('./src/socket');
 
 const v1Router = require('./src/routes/v1');
 
@@ -21,37 +19,17 @@ const server = http.createServer(app);
 
 // Environment configuration
 const env = process.env.NODE_ENV || 'development';
-console.log('🚀 Starting server in', env, 'environment');
+const isVercel = process.env.VERCEL === '1';
+
+console.log('🚀 Starting server. Vercel:', isVercel, 'Environment:', env);
 
 // Load environment variables
 if (env === 'development') {
   dotenv.config({ path: path.resolve(__dirname, '.env.development') });
-} else if (env === 'production') {
+} else if (env === 'production' && !isVercel) {
   dotenv.config({ path: path.resolve(__dirname, '.env.production') });
 }
 // For Vercel: Environment variables are automatically injected
-
-// Initialize Socket.io only if not in serverless environment
-let io;
-if (process.env.VERCEL !== '1') {
-  io = socketIo(server, {
-    cors: {
-      origin: [
-        'http://localhost:3000', 
-        'https://worksyc.vercel.app',
-        'https://worksyc-*.vercel.app',
-        'https://worksyc-git-*.vercel.app'
-      ],
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      credentials: true
-    }
-  });
-  app.set('io', io);
-  initSocket(io);
-  console.log('✅ Socket.io initialized');
-} else {
-  console.log('ℹ️  Socket.io disabled in serverless environment');
-}
 
 // Security middleware
 app.use(helmet({
@@ -106,6 +84,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: env,
+    vercel: isVercel,
     version: '1.0.0'
   });
 });
@@ -114,10 +93,10 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: '🚀 WorkSyc API Server is running!',
+    message: '🚀 Bravo API Server is running!',
     timestamp: new Date().toISOString(),
     environment: env,
-    documentation: '/api/v1/docs' // If you have docs
+    vercel: isVercel
   });
 });
 
@@ -148,6 +127,11 @@ app.use('*', (req, res) => {
 // Database connection
 const connectDatabase = async () => {
   try {
+    if (isVercel) {
+      console.log('ℹ️  Skipping database connection in serverless environment');
+      return;
+    }
+    
     await db.sequelize.authenticate();
     console.log('✅ Database connected successfully');
     
@@ -160,14 +144,14 @@ const connectDatabase = async () => {
   } catch (error) {
     console.error('❌ Database connection error:', error.message);
     // In production, you might want to exit if DB connection fails
-    if (env === 'production') {
+    if (env === 'production' && !isVercel) {
       process.exit(1);
     }
   }
 };
 
 // Start server only if not in serverless environment
-if (process.env.VERCEL !== '1') {
+if (!isVercel) {
   const PORT = process.env.PORT || 8080;
   
   connectDatabase().then(() => {
@@ -183,7 +167,7 @@ if (process.env.VERCEL !== '1') {
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
   server.close(() => {
-    if (db.sequelize) {
+    if (db.sequelize && !isVercel) {
       db.sequelize.close();
     }
     console.log('Process terminated');
@@ -192,8 +176,6 @@ process.on('SIGTERM', () => {
 
 // Export for Vercel serverless functions
 module.exports = app;
-
-
 
 
 // const express = require('express');
