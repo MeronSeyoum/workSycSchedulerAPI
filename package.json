@@ -1,19 +1,17 @@
 {
-  "name": "bravo-api-server-nodejs-postgresql",
+  "name": "serverapi",
   "version": "1.0.0",
   "description": "",
   "private": true,
   "author": {
     "name": "Meron Seyoum"
   },
-"main": "index.js",
+  "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
     "vercel-build": "npm install"
-  
-},
-
+  },
   "keywords": [],
   "license": "ISC",
   "dependencies": {
