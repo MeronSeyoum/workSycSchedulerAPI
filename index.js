@@ -10,12 +10,10 @@ const compression = require('compression');
 const { errorConverter, errorHandler } = require('./src/middlewares/error');
 const i18n = require('./src/config/i18n.config');
 const db = require('./src/models');
-const http = require('http');
 
 const v1Router = require('./src/routes/v1');
 
 const app = express();
-const server = http.createServer(app);
 
 // Environment configuration
 const env = process.env.NODE_ENV || 'development';
@@ -122,9 +120,7 @@ app.use('*', (req, res) => {
   });
 });
 
-// ==================== DATABASE & SERVER START ====================
-
-// Database connection
+// Database connection - only for non-serverless environments
 const connectDatabase = async () => {
   try {
     if (isVercel) {
@@ -150,29 +146,10 @@ const connectDatabase = async () => {
   }
 };
 
-// Start server only if not in serverless environment
+// Connect to database if not in serverless environment
 if (!isVercel) {
-  const PORT = process.env.PORT || 8080;
-  
-  connectDatabase().then(() => {
-    server.listen(PORT, () => {
-      console.log(`✅ Server running in ${env} mode on port ${PORT}`);
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
-      console.log(`📍 API: http://localhost:${PORT}/api/v1`);
-    });
-  });
+  connectDatabase();
 }
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    if (db.sequelize && !isVercel) {
-      db.sequelize.close();
-    }
-    console.log('Process terminated');
-  });
-}); // Fixed: Added missing closing bracket and parenthesis
 
 // Export for Vercel serverless functions
 module.exports = app;

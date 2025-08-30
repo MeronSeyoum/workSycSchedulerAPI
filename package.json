@@ -7,13 +7,11 @@
     "name": "Meron Seyoum"
   },
   "main": "index.js",
-  "scripts": {
-    "dev": "cross-env NODE_ENV=development nodemon index.js",
-    "start": "cross-env NODE_ENV=production node index.js",
-    "vercel-build": "npm install",
-    "lint": "eslint . --ext .js",
-    "lint:fix": "eslint . --ext .js --fix"
-  },
+ "scripts": {
+  "dev": "cross-env NODE_ENV=development nodemon index.js",
+  "start": "cross-env NODE_ENV=production node index.js",
+  "vercel-build": "npm install"
+},
   "keywords": [
     "express",
     "api",
