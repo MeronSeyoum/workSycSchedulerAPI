@@ -55,19 +55,37 @@ app.use(i18n);
 app.use(express.static(path.join(__dirname, 'src/public')));
 
 // CORS configuration
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://worksyc.vercel.app',
+  'https://worksyc-git-main-meronseyoums-projects.vercel.app',
+  'https://worksyc-k0geo7syd-meronseyoums-projects.vercel.app',
+  /\.vercel\.app$/ // Regex to match all vercel subdomains
+];
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'https://work-syc-scheduler-api.vercel.app',
-    'https://work-syc-*.vercel.app',
-    'https://worksyc-git-main-meronseyoums-projects.vercel.app',
-    'https://worksyc-k0geo7syd-meronseyoums-projects.vercel.app'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    })) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
-
 // Handle preflight requests
 app.options('*', cors());
 
