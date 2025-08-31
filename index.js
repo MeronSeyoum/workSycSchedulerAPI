@@ -60,6 +60,8 @@ app.use(cors({
     'http://localhost:3000', 
     'https://work-syc-scheduler-api.vercel.app',
     'https://work-syc-*.vercel.app',
+    'https://worksyc-git-main-meronseyoums-projects.vercel.app',
+    'https://worksyc-k0geo7syd-meronseyoums-projects.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
