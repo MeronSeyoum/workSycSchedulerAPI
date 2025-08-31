@@ -891,8 +891,29 @@ exports.moveShiftToDate = async (req, res) => {
       return res.status(400).json({ error: 'Invalid date format' });
     }
 
-    // Get existing shift
-    const shift = await Shift.findByPk(shiftId, { transaction });
+    // Get existing shift with all related data
+    const shift = await Shift.findByPk(shiftId, {
+      include: [
+        {
+          model: Client,
+          as: 'client'
+        },
+        {
+          model: EmployeeShift,
+          as: 'employee_shifts',
+          include: [{
+            model: Employee,
+            as: 'employee',
+            include: [{
+              model: User,
+              as: 'user'
+            }]
+          }]
+        }
+      ],
+      transaction
+    });
+    
     if (!shift) {
       await transaction.rollback();
       return res.status(404).json({ error: 'Shift not found' });
@@ -906,6 +927,24 @@ exports.moveShiftToDate = async (req, res) => {
         start_time: shift.start_time,
         end_time: shift.end_time
       },
+      include: [
+        {
+          model: Client,
+          as: 'client'
+        },
+        {
+          model: EmployeeShift,
+          as: 'employee_shifts',
+          include: [{
+            model: Employee,
+            as: 'employee',
+            include: [{
+              model: User,
+              as: 'user'
+            }]
+          }]
+        }
+      ],
       transaction
     });
 
@@ -921,7 +960,27 @@ exports.moveShiftToDate = async (req, res) => {
         shift_type: shift.shift_type,
         created_by: shift.created_by,
         notes: shift.notes
-      }, { transaction });
+      }, { 
+        include: [
+          {
+            model: Client,
+            as: 'client'
+          },
+          {
+            model: EmployeeShift,
+            as: 'employee_shifts',
+            include: [{
+              model: Employee,
+              as: 'employee',
+              include: [{
+                model: User,
+                as: 'user'
+              }]
+            }]
+          }
+        ],
+        transaction 
+      });
     }
 
     // Move employee
@@ -937,14 +996,56 @@ exports.moveShiftToDate = async (req, res) => {
       status: 'scheduled'
     }, { transaction });
 
+    // Reload the target shift with all associations
+    const updatedShift = await Shift.findByPk(targetShift.id, {
+      include: [
+        {
+          model: Client,
+          as: 'client'
+        },
+        {
+          model: EmployeeShift,
+          as: 'employee_shifts',
+          include: [{
+            model: Employee,
+            as: 'employee',
+            include: [{
+              model: User,
+              as: 'user'
+            }]
+          }]
+        }
+      ],
+      transaction
+    });
+
     await transaction.commit();
+    
+    // Format the response to match ShiftWithEmployees
+    const formattedShift = {
+      ...updatedShift.get({ plain: true }),
+      employees: updatedShift.employee_shifts.map(es => ({
+        assignment_id: es.id,
+        employee_id: es.employee_id,
+        status: es.status,
+        notes: es.notes,
+        assigned_by: es.assigned_by,
+        employee: {
+          id: es.employee.id,
+          position: es.employee.position,
+          employee_code: es.employee.employee_code,
+          hire_date: es.employee.hire_date,
+          user: es.employee.user
+        }
+      }))
+    };
     
     res.status(200).json({
       success: true,
       message: 'Shift moved successfully',
       data: {
         oldShiftId: shiftId,
-        newShift: targetShift
+        newShift: formattedShift
       }
     });
     
@@ -957,7 +1058,6 @@ exports.moveShiftToDate = async (req, res) => {
     });
   }
 };
-
 
 const createShiftAssignmentNotification = async (employeeId, shiftId, transaction) => {
   try {
