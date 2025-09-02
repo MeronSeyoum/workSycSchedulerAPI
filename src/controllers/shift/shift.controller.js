@@ -50,18 +50,9 @@ const formatShiftResponse = (shift) => {
     client: shift.client
   };
 };
-// const formatShiftResponse = (shift) => {
-//   return {
-//     id: shift.id,
-//     date: shift.date,
-//     start_time: shift.start_time,
-//     end_time: shift.end_time,
-//     client_id: shift.client_id,
-//     shift_type: shift.shift_type,
-//     notes: shift.notes,
-//     created_at: shift.created_at
-//   };
-// };
+
+
+
 exports.getAll = async (req, res) => {
   try {
     const { clientId, startDate, endDate } = req.query;
@@ -440,9 +431,151 @@ exports.getById = async (req, res) => {
 // };
 
 
+// exports.createShiftWithEmployees = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+  
+//   try {
+//     const { client_id, date, start_time, end_time, shift_type, employee_ids = [], notes } = req.body;
+//     const assigned_by = req.user.id;
+
+//     // Validate required fields
+//     if (!client_id || !date || !start_time || !end_time || !shift_type) {
+//       await transaction.rollback();
+//       return res.status(400).json({ error: 'Missing required fields' });
+//     }
+
+//     // Validate time
+//     if (dayjs(end_time, 'HH:mm').isBefore(dayjs(start_time, 'HH:mm'))) {
+//       await transaction.rollback();
+//       return res.status(400).json({ error: 'End time must be after start time' });
+//     }
+
+//     // Check client exists
+//     const client = await Client.findByPk(client_id, { transaction });
+//     if (!client) {
+//       await transaction.rollback();
+//       return res.status(404).json({ error: 'Client not found' });
+//     }
+
+//     console.log("shift date : ", date);
+
+//     // Create shift
+//     const shift = await Shift.create({
+//       date,
+//       start_time,
+//       end_time,
+//       client_id,
+//       shift_type,
+//       created_by: assigned_by,
+//       notes,
+//     }, { transaction });
+
+//     const conflictErrors = [];
+//     const employeeShiftsData = [];
+//     const notifications = [];
+//     const uniqueEmployeeIds = [...new Set(employee_ids)];
+
+//     // Process each employee assignment
+//     for (const employee_id of uniqueEmployeeIds) {
+//       const employee = await Employee.findByPk(employee_id, { 
+//         transaction,
+//         include: [{
+//           model: User,
+//           as: 'user',
+//           attributes: ['id', 'first_name', 'last_name']
+//         }]
+//       });
+
+//       if (!employee) {
+//         conflictErrors.push(`Employee ${employee_id} not found`);
+//         continue;
+//       }
+
+//       // Check employee assignment to location
+//       if (!employee.assigned_locations?.includes(client.business_name)) {
+//         conflictErrors.push(
+//           `Employee ${employee.user?.first_name} ${employee.user?.last_name} is not assigned to this location`
+//         );
+//         continue;
+//       }
+
+//       // Create employee shift assignment
+//       const employeeShift = await EmployeeShift.create({
+//         employee_id,
+//         shift_id: shift.id,
+//         assigned_by,
+//         status: 'scheduled',
+//         notes
+//       }, { transaction });
+
+//       employeeShiftsData.push(employeeShift);
+
+//       // Create notification for employee
+//       try {
+//         const notification = await createShiftAssignmentNotification(
+//           employee_id,
+//           shift.id,
+//           transaction // Pass the transaction
+//         );
+//         notifications.push(notification);
+//       } catch (notificationError) {
+//         console.error('Failed to create notification:', notificationError);
+//         conflictErrors.push(
+//           `Failed to notify employee ${employee.user?.first_name} ${employee.user?.last_name}`
+//         );
+//       }
+//     }
+
+//     // Handle complete failure case
+//     if (conflictErrors.length > 0 && employeeShiftsData.length === 0) {
+//       await transaction.rollback();
+//       return res.status(400).json({ 
+//         error: 'All employee assignments failed',
+//         details: conflictErrors 
+//       });
+//     }
+
+//     await transaction.commit();
+
+//     // Prepare response
+//     const response = {
+//       success: true,
+//       message: 'Shift created successfully',
+//       data: {
+//         ...formatShiftResponse({
+//           ...shift.get({ plain: true }),
+//           employee_shifts: employeeShiftsData,
+//           client
+//         }),
+//         employees: employeeShiftsData.map(es => ({
+//           assignment_id: es.id,
+//           employee_id: es.employee_id,
+//           status: es.status
+//         }))
+//       }
+//     };
+
+//     // Add warnings if partial success
+//     if (conflictErrors.length > 0) {
+//       response.warnings = conflictErrors;
+//       return res.status(207).json(response);
+//     }
+
+//     res.status(201).json(response);
+    
+//   } catch (error) {
+//     await transaction.rollback();
+//     console.error('Shift creation error:', error);
+//     res.status(500).json({ 
+//       error: 'Failed to create shift',
+//       details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+//     });
+//   }
+// };
+
 exports.createShiftWithEmployees = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { client_id, date, start_time, end_time, shift_type, employee_ids = [], notes } = req.body;
     const assigned_by = req.user.id;
@@ -450,23 +583,30 @@ exports.createShiftWithEmployees = async (req, res) => {
     // Validate required fields
     if (!client_id || !date || !start_time || !end_time || !shift_type) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
     }
 
     // Validate time
     if (dayjs(end_time, 'HH:mm').isBefore(dayjs(start_time, 'HH:mm'))) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'End time must be after start time' });
+      return res.status(400).json({
+        success: false,
+        message: 'End time must be after start time'
+      });
     }
 
     // Check client exists
     const client = await Client.findByPk(client_id, { transaction });
     if (!client) {
       await transaction.rollback();
-      return res.status(404).json({ error: 'Client not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Client not found'
+      });
     }
-
-    console.log("shift date : ", date);
 
     // Create shift
     const shift = await Shift.create({
@@ -476,7 +616,7 @@ exports.createShiftWithEmployees = async (req, res) => {
       client_id,
       shift_type,
       created_by: assigned_by,
-      notes,
+      notes
     }, { transaction });
 
     const conflictErrors = [];
@@ -484,9 +624,8 @@ exports.createShiftWithEmployees = async (req, res) => {
     const notifications = [];
     const uniqueEmployeeIds = [...new Set(employee_ids)];
 
-    // Process each employee assignment
     for (const employee_id of uniqueEmployeeIds) {
-      const employee = await Employee.findByPk(employee_id, { 
+      const employee = await Employee.findByPk(employee_id, {
         transaction,
         include: [{
           model: User,
@@ -508,7 +647,39 @@ exports.createShiftWithEmployees = async (req, res) => {
         continue;
       }
 
-      // Create employee shift assignment
+      // Check for shift conflicts
+      const conflictingShift = await Shift.findOne({
+        include: [{
+          model: EmployeeShift,
+          as: 'employee_shifts',
+          where: { employee_id },
+          required: true
+        }],
+        where: {
+          date,
+          [Op.or]: [
+            { start_time: { [Op.between]: [start_time, end_time] } },
+            { end_time: { [Op.between]: [start_time, end_time] } },
+            {
+              [Op.and]: [
+                { start_time: { [Op.lte]: start_time } },
+                { end_time: { [Op.gte]: end_time } }
+              ]
+            }
+          ]
+        },
+        transaction
+      });
+
+      if (conflictingShift) {
+        conflictErrors.push(
+          `Employee ${employee.user?.first_name} ${employee.user?.last_name} already has a shift overlapping this time`
+        );
+        
+        continue;
+      }
+
+      // Assign employee to shift
       const employeeShift = await EmployeeShift.create({
         employee_id,
         shift_id: shift.id,
@@ -519,12 +690,12 @@ exports.createShiftWithEmployees = async (req, res) => {
 
       employeeShiftsData.push(employeeShift);
 
-      // Create notification for employee
+      // Create notification
       try {
         const notification = await createShiftAssignmentNotification(
           employee_id,
           shift.id,
-          transaction // Pass the transaction
+          transaction
         );
         notifications.push(notification);
       } catch (notificationError) {
@@ -535,53 +706,109 @@ exports.createShiftWithEmployees = async (req, res) => {
       }
     }
 
-    // Handle complete failure case
+    // Handle complete failure
     if (conflictErrors.length > 0 && employeeShiftsData.length === 0) {
       await transaction.rollback();
-      return res.status(400).json({ 
-        error: 'All employee assignments failed',
-        details: conflictErrors 
+      return res.status(400).json({
+        success: false,
+        message: conflictErrors.join(', '),
+        details: conflictErrors
       });
     }
 
     await transaction.commit();
 
-    // Prepare response
-    const response = {
-      success: true,
-      message: 'Shift created successfully',
-      data: {
-        ...formatShiftResponse({
-          ...shift.get({ plain: true }),
-          employee_shifts: employeeShiftsData,
-          client
-        }),
-        employees: employeeShiftsData.map(es => ({
-          assignment_id: es.id,
-          employee_id: es.employee_id,
-          status: es.status
-        }))
-      }
+    // Fetch the complete shift with associations
+    const completeShift = await Shift.findByPk(shift.id, {
+      include: [
+        {
+          model: EmployeeShift,
+          as: 'employee_shifts',
+          required: false,
+          include: [
+            {
+              model: Employee,
+              as: 'employee',
+              required: false,
+              include: [{
+                model: User,
+                as: 'user',
+                attributes: ['first_name', 'last_name', 'email'],
+                required: false
+              }]
+            },
+            {
+              model: User,
+              as: 'assigner',
+              attributes: ['id', 'first_name', 'last_name'],
+              required: false
+            }
+          ]
+        },
+        {
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'business_name']
+        }
+      ]
+    });
+
+    const shiftData = completeShift.get({ plain: true });
+
+    const formattedShift = {
+      id: shiftData.id,
+      date: shiftData.date,
+      start_time: shiftData.start_time,
+      end_time: shiftData.end_time,
+      client_id: shiftData.client_id,
+      created_by: shiftData.created_by,
+      shift_type: shiftData.shift_type,
+      notes: shiftData.notes,
+      created_at: shiftData.created_at,
+      updated_at: shiftData.updated_at,
+      employees: (shiftData.employee_shifts || []).map(es => ({
+        assignment_id: es.id,
+        status: es.status,
+        notes: es.notes,
+        assigned_by: es.assigner,
+        employee: es.employee ? {
+          id: es.employee.id,
+          position: es.employee.position,
+          employee_code: es.employee.employee_code,
+          hire_date: es.employee.hire_date,
+          user: es.employee.user
+        } : null
+      })),
+      client: shiftData.client
     };
 
-    // Add warnings if partial success
+    // Partial success
     if (conflictErrors.length > 0) {
-      response.warnings = conflictErrors;
-      return res.status(207).json(response);
+      return res.status(207).json({
+        success: true,
+        message: 'Shift created with warnings',
+        data: formattedShift,
+        warnings: conflictErrors
+      });
     }
 
-    res.status(201).json(response);
-    
+    // Full success
+    return res.status(201).json({
+      success: true,
+      message: 'Shift created successfully',
+      data: formattedShift
+    });
+
   } catch (error) {
     await transaction.rollback();
     console.error('Shift creation error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create shift',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create shift',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
-
 
 
 exports.createRecurring = async (req, res) => {

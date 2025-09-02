@@ -13,40 +13,54 @@ dayjs.extend(customParseFormat);
  * @returns {string} - Appropriate attendance status
  */
 const calculateAttendanceStatus = (clockInTime, clockOutTime, shift) => {
-  // If no shift is assigned, default to 'present' status
-  if (!shift) return 'present'; 
+  if (!shift) return 'present';
   
-  // Create Date objects from shift times
-  const shiftStart = new Date(`${shift.date}T${shift.start_time}`);
-  const shiftEnd = new Date(`${shift.date}T${shift.end_time}`);
+  // Convert to Date objects if they aren't already
+  const clockIn = new Date(clockInTime);
+  const clockOut = clockOutTime ? new Date(clockOutTime) : null;
   
-  // Define thresholds (15 minutes late, 30 minutes early departure)
-  const lateThreshold = 15 * 60 * 1000; // 15 minutes in milliseconds
-  const earlyDepartureThreshold = 30 * 60 * 1000; // 30 minutes in milliseconds
+  // Create shift times in UTC to avoid timezone issues
+  const shiftStart = new Date(`${shift.date}T${shift.start_time}:00Z`);
+  const shiftEnd = new Date(`${shift.date}T${shift.end_time}:00Z`);
   
-  // Determine if employee is late or left early
-  const isLate = clockInTime > shiftStart.getTime() + lateThreshold;
-  const isEarlyDeparture = clockOutTime && 
-                         (clockOutTime < shiftEnd.getTime() - earlyDepartureThreshold);
+  const lateThreshold = 15 * 60 * 1000; // 15 minutes
+  const earlyDepartureThreshold = 30 * 60 * 1000; // 30 minutes
   
-  // If not clocked out yet, return pending or late status
-  if (!clockOutTime) {
-    return isLate ? 'late_arrival' : 'pending';
+  const clockInTimeMs = clockIn.getTime();
+  const clockOutTimeMs = clockOut ? clockOut.getTime() : null;
+  
+  // Check if clock-in is outside shift boundaries
+  if (clockInTimeMs < shiftStart.getTime() - (60 * 60 * 1000)) { // 1 hour early
+    return 'too_early';
   }
   
-  // Handle combined late arrival and early departure
+  if (clockInTimeMs > shiftEnd.getTime()) { // After shift ended
+    return 'too_late';
+  }
+  
+  // Check late arrival
+  const isLate = clockInTimeMs > shiftStart.getTime() + lateThreshold;
+  
+  if (!clockOut) {
+    return isLate ? 'late_arrival' : 'present';
+  }
+  
+  // Check early departure
+  const isEarlyDeparture = clockOutTimeMs < shiftEnd.getTime() - earlyDepartureThreshold;
+  
+  // Validate clock-out isn't before clock-in
+  if (clockOutTimeMs <= clockInTimeMs) {
+    return 'invalid_times';
+  }
+  
+  // Check if clock-out is after shift end (overtime)
+  const isOvertime = clockOutTimeMs > shiftEnd.getTime() + (30 * 60 * 1000);
+  
   if (isLate && isEarlyDeparture) return 'late_and_early';
   if (isLate) return 'late_arrival';
   if (isEarlyDeparture) return 'early_departure';
+  if (isOvertime) return 'overtime';
   
-  // Check for partial attendance (worked less than 50% of scheduled shift)
-  const scheduledDuration = shiftEnd - shiftStart;
-  const actualDuration = clockOutTime - clockInTime;
-  if (actualDuration < scheduledDuration * 0.5) {
-    return 'partial_attendance';
-  }
-  
-  // Default to present if all checks pass
   return 'present';
 };
 
@@ -385,6 +399,22 @@ exports.clockIn = async (req, res) => {
     const now = new Date();
     const status = calculateAttendanceStatus(now, null, shift);
 
+// TODO: for testing purpose disable this validation
+
+// Validate clock-in time is within reasonable bounds
+// const shiftStart = new Date(`${shift.date}T${shift.start_time}:00Z`);
+// const shiftEnd = new Date(`${shift.date}T${shift.end_time}:00Z`);
+
+// // Don't allow clock-in more than 1 hour early
+// if (now.getTime() < shiftStart.getTime() - (60 * 60 * 1000)) {
+//   throw new Error('Cannot clock in more than 1 hour before shift start');
+// }
+
+// // Don't allow clock-in after shift end
+// if (now.getTime() > shiftEnd.getTime()) {
+//   throw new Error('Cannot clock in after shift has ended');
+// }
+    
     // Create attendance record
     const attendance = await Attendance.create({
       employee_id: employeeId,
@@ -434,6 +464,9 @@ exports.clockIn = async (req, res) => {
     });
   }
 };
+
+
+
 exports.clockOut = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -483,6 +516,19 @@ exports.clockOut = async (req, res) => {
       clockOutTime,
       shift
     );
+
+// TODO: disable clock-out time validation and check to see if it necessary
+
+    // Validate clock-out time is reasonable
+// if (clockOutTime <= attendance.clock_in_time) {
+//   throw new Error('Clock-out time cannot be before clock-in time');
+// }
+
+// // Optional: Allow some grace period after shift end
+// const shiftEnd = new Date(`${shift.date}T${shift.end_time}:00Z`);
+// if (clockOutTime > shiftEnd.getTime() + (4 * 60 * 60 * 1000)) { // 4 hours max overtime
+//   throw new Error('Clock-out time is unreasonably late');
+// }
 
     // Update attendance record
     await attendance.update({

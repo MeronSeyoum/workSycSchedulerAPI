@@ -215,7 +215,7 @@ if (!isVercel) {
 // Start the server (only if not in Vercel environment)
 if (!isVercel) {
   const PORT = process.env.PORT || 8080;
-  
+  console.log(`ℹ️  request received from ${PORT}`);
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
     console.log(`📊 Environment: ${env}`);
