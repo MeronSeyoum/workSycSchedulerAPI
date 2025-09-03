@@ -132,19 +132,60 @@ const getTodaysShifts = async (req, res) => {
 };
 
 // Helper Functions
-const getWeeklyChartData = async (employeeId) => {
-  const chartData = Array(14).fill(0);
-  const dateRanges = Array.from({ length: 14 }, (_, i) => ({
-    start: dayjs()
-      .subtract(13 - i, 'day')
-      .startOf('day')
-      .toDate(),
-    end: dayjs()
-      .subtract(13 - i, 'day')
-      .endOf('day')
-      .toDate(),
-  }));
+// const getWeeklyChartData = async (employeeId) => {
+//   const chartData = Array(14).fill(0);
+//   const dateRanges = Array.from({ length: 14 }, (_, i) => ({
+//     start: dayjs()
+//       .subtract(13 - i, 'day')
+//       .startOf('day')
+//       .toDate(),
+//     end: dayjs()
+//       .subtract(13 - i, 'day')
+//       .endOf('day')
+//       .toDate(),
+//   }));
 
+//   const dailyHours = await Promise.all(
+//     dateRanges.map((range) =>
+//       Attendance.sum('hours', {
+//         where: {
+//           employee_id: employeeId,
+//           clock_out_time: { [Op.ne]: null },
+//           clock_in_time: { [Op.between]: [range.start, range.end] },
+//         },
+//       })
+//     )
+//   );
+
+//   return dailyHours.map((hours) => roundToDecimal(hours, 1));
+// };
+const getWeeklyChartData = async (employeeId) => {
+  // Get the current date and find the most recent Sunday
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  
+  // Calculate the date of the most recent Sunday
+  const mostRecentSunday = new Date(today);
+  mostRecentSunday.setDate(today.getDate() - dayOfWeek);
+  mostRecentSunday.setHours(0, 0, 0, 0);
+  
+  // Create date ranges for the last 2 full weeks (Sunday to Saturday)
+  const dateRanges = Array.from({ length: 14 }, (_, i) => {
+    const weekOffset = Math.floor(i / 7); // 0 for current week, 1 for previous week
+    const dayInWeek = i % 7; // 0-6 for Sunday to Saturday
+    
+    const date = new Date(mostRecentSunday);
+    date.setDate(mostRecentSunday.getDate() - (7 * (1 - weekOffset)) + dayInWeek);
+    
+    return {
+      start: dayjs(date).startOf('day').toDate(),
+      end: dayjs(date).endOf('day').toDate(),
+      week: weekOffset,
+      day: dayInWeek
+    };
+  });
+
+  const chartData = Array(14).fill(0);
   const dailyHours = await Promise.all(
     dateRanges.map((range) =>
       Attendance.sum('hours', {
