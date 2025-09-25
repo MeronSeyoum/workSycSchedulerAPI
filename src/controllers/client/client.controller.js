@@ -91,6 +91,52 @@ exports.create = async (req, res) => {
   }
 };
 
+//   try {
+//     // Validate params and body
+//     const { error: paramsError } = clientValidation.update.params.validate(req.params);
+//     if (paramsError) return res.status(400).json({ error: paramsError.details[0].message });
+
+//     const { error: bodyError } = clientValidation.update.body.validate(req.body);
+//     if (bodyError) return res.status(400).json({ error: bodyError.details[0].message });
+
+//     // Find client
+//     const client = await Client.findByPk(req.params.id);
+//     if (!client) {
+//       return res.status(404).json({ message: 'Client not found' });
+//     }
+
+//     // Check for business name conflict if changing
+//     if (req.body.business_name && req.body.business_name !== client.business_name) {
+//       const nameExists = await Client.findOne({ 
+//         where: { business_name: req.body.business_name } 
+//       });
+//       if (nameExists) {
+//         return res.status(400).json({ 
+//           message: 'Business name already in use',
+//           error: `The business name "${req.body.business_name}" is already registered`
+//         });
+//       }
+//     }
+
+//     // Update client
+//     await client.update({
+//       business_name: req.body.business_name || client.business_name,
+//       client_type: req.body.client_type || client.client_type,
+//       service_type: req.body.service_type || client.service_type,
+//       billing_address: req.body.billing_address || client.billing_address,
+//       status: req.body.status || client.status,
+//       note: req.body.note || client.note,
+//     });
+
+//     res.json(client);
+//   } catch (error) {
+//     console.error('Error updating client:', error);
+//     res.status(500).json({ 
+//       message: 'Failed to update client',
+//       error: error.message,
+//     });
+//   }
+// };
 exports.update = async (req, res) => {
   try {
     // Validate params and body
@@ -119,17 +165,28 @@ exports.update = async (req, res) => {
       }
     }
 
-    // Update client
-    await client.update({
+    // Update client and get the updated instance
+    const updatedClient = await client.update({
       business_name: req.body.business_name || client.business_name,
+      contact_person: req.body.contact_person || client.contact_person, // Added missing field
+      email: req.body.email || client.email, // Added missing field
+      phone: req.body.phone || client.phone, // Added missing field
       client_type: req.body.client_type || client.client_type,
       service_type: req.body.service_type || client.service_type,
+      location_address: req.body.location_address || client.location_address, // Added missing field
       billing_address: req.body.billing_address || client.billing_address,
       status: req.body.status || client.status,
-      note: req.body.note || client.note,
+      notes: req.body.notes || client.notes, // Fixed: changed 'note' to 'notes' to match your form
     });
 
-    res.json(client);
+    // Reload the client to get fresh data from database
+    const freshClient = await Client.findByPk(req.params.id);
+    
+    res.json({
+      message: 'Client updated successfully',
+      client: freshClient
+    });
+    
   } catch (error) {
     console.error('Error updating client:', error);
     res.status(500).json({ 
@@ -138,7 +195,6 @@ exports.update = async (req, res) => {
     });
   }
 };
-
 exports.delete = async (req, res) => {
   try {
     // Validate params

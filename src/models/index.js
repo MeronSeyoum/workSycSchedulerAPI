@@ -1,3 +1,7 @@
+
+// src/models/index.js
+// Database connection and model initialization
+
 const Sequelize = require('sequelize');
 const dotenv = require('dotenv');
 const path = require('path');

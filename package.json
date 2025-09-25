@@ -7,7 +7,7 @@
     "name": "Meron Seyoum"
   },
   "main": "index.js",
- "scripts": {
+  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "cross-env NODE_ENV=DEVELOPMENT nodemon ./src/server.js",
     "start": "NODE_ENV=PRODUCTION node ./src/server.js"
@@ -40,6 +40,7 @@
     "pg-hstore": "^2.3.4",
     "qrcode": "^1.5.4",
     "sequelize": "^6.31.1",
+    "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^4.6.3",
     "uuid": "^9.0.0",

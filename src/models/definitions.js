@@ -16,7 +16,8 @@ const definitions = (sequelize, Sequelize) => {
   db.QRCode = require('./QRCode.model')(sequelize, Sequelize);
   db.Attendance = require('./Attendance.model')(sequelize, Sequelize);
   db.EmployeeShift = require('./EmployeeShift.model')(sequelize, Sequelize);
-   db.Notification = require('./Notification.model')(sequelize, Sequelize);
+  db.Notification = require('./Notification.model')(sequelize, Sequelize);
+  db.Chat = require('./chat.model')(sequelize, Sequelize);
 
   // ====================
   // 1. USER ASSOCIATIONS
@@ -42,6 +43,19 @@ const definitions = (sequelize, Sequelize) => {
     foreignKey: 'assigned_by',
     as: 'assigned_shifts',
     onDelete: 'SET NULL'
+  });
+
+  // Chat associations for User
+  db.User.hasMany(db.Chat, {
+    foreignKey: 'sender_id',
+    as: 'sent_messages',
+    onDelete: 'CASCADE'
+  });
+  
+  db.User.hasMany(db.Chat, {
+    foreignKey: 'recipient_id',
+    as: 'received_messages',
+    onDelete: 'SET NULL' // Keep messages even if recipient is deleted
   });
 
   // ========================
@@ -193,6 +207,22 @@ const definitions = (sequelize, Sequelize) => {
   db.Notification.belongsTo(db.Shift, {
     foreignKey: 'shiftId',
     as: 'shift'
+  });
+
+
+  // ========================
+  // 11. CHAT ASSOCIATIONS
+  // ========================
+  db.Chat.belongsTo(db.User, {
+    foreignKey: 'sender_id',
+    as: 'sender',
+    onDelete: 'CASCADE' // Delete messages if sender is deleted
+  });
+  
+  db.Chat.belongsTo(db.User, {
+    foreignKey: 'recipient_id',
+    as: 'recipient',
+    onDelete: 'SET NULL' // Keep messages but nullify recipient if user is deleted
   });
   
   return db;

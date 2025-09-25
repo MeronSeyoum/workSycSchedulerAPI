@@ -16,7 +16,7 @@ module.exports = (sequelize) => {
       //   key: 'id'
       // }
     },
-    code_value: {
+    code_value:{
       type: DataTypes.STRING,
       allowNull: false,
       unique: true
