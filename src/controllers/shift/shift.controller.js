@@ -577,7 +577,7 @@ exports.createShiftWithEmployees = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { client_id, date, start_time, end_time, shift_type, employee_ids = [], notes } = req.body;
+    const { client_id, date, start_time, end_time, shift_type, employee_ids = [], notes, status } = req.body;
     const assigned_by = req.user.id;
 
     // Validate required fields
@@ -684,7 +684,7 @@ exports.createShiftWithEmployees = async (req, res) => {
         employee_id,
         shift_id: shift.id,
         assigned_by,
-        status: 'scheduled',
+        status: status,
         notes
       }, { transaction });
 

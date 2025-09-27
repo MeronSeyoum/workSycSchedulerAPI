@@ -95,7 +95,7 @@ const getShiftsSchema = Joi.object({
     }),
     
   status: Joi.string()
-    .valid('scheduled', 'completed', 'missed', 'pending', 'in_progress')
+    .valid('scheduled', 'completed', 'missed', 'pending', 'in_progress','draft')
     .optional()
     .description('Shift status to filter by')
 }).options({ abortEarly: false });

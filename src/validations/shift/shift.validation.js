@@ -12,7 +12,9 @@ const createShiftWithEmployees = {
       .required(),
     shift_type: Joi.string().valid('regular', 'emergency').default('regular'),
     employee_ids: Joi.array().items(Joi.number().integer()).min(1).required(),
-    notes: Joi.string().allow('').optional()
+    notes: Joi.string().allow('').optional(),
+    status: Joi.string().allow('').optional()
+
   })
 };
 
@@ -24,8 +26,9 @@ const updateShift = {
     end_time: Joi.string()
       .pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
       .required(),
-    status: Joi.string().valid('scheduled', 'completed', 'missed').optional(),
+    status: Joi.string().valid('scheduled', 'completed', 'missed', 'draft').optional(),
     notes: Joi.string().allow('').optional()
+
   })
 };
 
