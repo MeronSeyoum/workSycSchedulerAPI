@@ -9,4 +9,5 @@ module.exports.attendanceValidation = require('./attendance/attendance.validatio
 module.exports.employeeDashboardValidation = require('./employee/employeeDashboard.validation');
 module.exports.notificationValidation = require('./notification/notification.validation');
 module.exports.geofenceValidation = require('./geofence/geofence.validation');
+module.exports.chatValidation = require('./chat/chat.validation');
 

@@ -1,25 +1,20 @@
-// routes/v1/chat.route.js
 const express = require('express');
 const router = express.Router();
 const chatController = require('../../controllers/chat/chat.controller');
+const validate = require('../../middlewares/validate');
 const { authVerify } = require('../../middlewares/auth');
+const { chatValidation } = require('../../validations');
 
-// Apply authentication middleware to all chat routes
+// Apply authentication to all chat routes
 router.use(authVerify);
 
-// Get all conversations for current user
-router.get('/conversations', chatController.getConversations);
-
-// Get messages between current user and another user
-router.get('/messages/:userId', chatController.getMessages);
-
-// Get broadcast messages
+// Chat routes
+router.get('/employees', chatController.getEmployees);
+router.get('/conversations', validate(chatValidation.getConversations), chatController.getConversations);
+router.get('/messages/:userId', validate(chatValidation.getMessages), chatController.getMessages);
 router.get('/broadcast', chatController.getBroadcastMessages);
-
-// Send a message
-router.post('/send', chatController.sendMessage);
-
-// Get unread message count
+router.post('/send', validate(chatValidation.sendMessage), chatController.sendMessage);
+router.post('/mark-read', validate(chatValidation.markAsRead), chatController.markAsRead);
 router.get('/unread-count', chatController.getUnreadCount);
 
 module.exports = router;
