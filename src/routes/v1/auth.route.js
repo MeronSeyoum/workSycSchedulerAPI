@@ -16,6 +16,13 @@ router.get('/getUser', authVerify, authController.getUser);
 // logout
 router.post('/logout', authVerify, authController.logout);
 
+// Password change (authenticated users)
+router.post('/change-password', authVerify, validate(authValidation.changePassword), authController.changePassword);
+
+// Password recovery (no authentication required)
+router.post('/forgot-password', validate(authValidation.forgotPassword), authController.forgotPassword);
+router.post('/reset-password', validate(authValidation.resetPassword), authController.resetPassword);
+
 module.exports = router;
 
 /**

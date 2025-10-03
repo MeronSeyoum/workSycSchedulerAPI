@@ -1,3 +1,4 @@
+// Helper functions for authentication
 const isTokenIncluded = (req) => {
   if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
     return true;
