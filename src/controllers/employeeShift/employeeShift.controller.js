@@ -1,4 +1,4 @@
-const { Shift, EmployeeShift, Attendance, Client, Employee, QRCode, sequelize } = require('../../models');
+const { Shift, EmployeeShift, Attendance, Client, Employee, QRCode, Geofence, sequelize } = require('../../models');
 const { Op } = require('sequelize');
 const dayjs = require('dayjs');
 const customParseFormat = require('dayjs/plugin/customParseFormat');
@@ -131,19 +131,27 @@ exports.getEmployeeShifts = async (req, res) => {
           model: Client,
           as: 'client',
           attributes: ['id', 'business_name', 'location_address'],
-          include: [{
-            model: QRCode,
-            as: 'qrcode',  // Matches the hasOne association name
-            attributes: ['code_value', 'expires_at'],
-            required: false
-          }]
+          include: [
+            {
+              model: QRCode,
+              as: 'qrcode',
+              attributes: ['code_value', 'expires_at'],
+              required: false
+            },
+            {
+              model: Geofence,
+              as: 'geofences',
+              attributes: ['latitude', 'longitude', 'radius_meters'],
+              required: false
+            }
+          ]
         },
         {
           model: Attendance,
           as: 'attendances',
           where: { employee_id: employeeId },
           required: false,
-          separate: true  // Important for hasMany relationship
+          separate: true
         }
       ],
       order: [
@@ -152,29 +160,36 @@ exports.getEmployeeShifts = async (req, res) => {
       ]
     });
 
-    const formattedShifts = shifts.map(shift => {
-      const plainShift = shift.get({ plain: true });
-      return {
-        id: plainShift.id,
-        date: plainShift.date,
-        startTime: plainShift.start_time,
-        endTime: plainShift.end_time,
-        shift_type: plainShift.shift_type,
-        status: plainShift.employee_shifts[0].status,
-        notes: plainShift.notes,
-        client: {
-          id: plainShift.client.id,
-          business_name: plainShift.client.business_name,
-          location_address: plainShift.client.location_address
-        },
-        qrcode: plainShift.client.qrcode ? {
-          code_value: plainShift.client.qrcode.code_value,
-          expires_at: plainShift.client.qrcode.expires_at,
-          is_valid: new Date() < new Date(plainShift.client.qrcode.expires_at)
-        } : null,
-        attendance: plainShift.attendances?.[0] || null
-      };
-    });
+const formattedShifts = shifts.map(shift => {
+  const plainShift = shift.get({ plain: true });
+  
+  // Get the first geofence (or null if none exist)
+  const geofence = plainShift.client.geofences && plainShift.client.geofences.length > 0 
+    ? plainShift.client.geofences[0] 
+    : null;
+
+  return {
+    id: plainShift.id,
+    date: plainShift.date,
+    startTime: plainShift.start_time,
+    endTime: plainShift.end_time,
+    shift_type: plainShift.shift_type,
+    status: plainShift.employee_shifts[0].status,
+    notes: plainShift.notes,
+    client: {
+      id: plainShift.client.id,
+      business_name: plainShift.client.business_name,
+      location_address: plainShift.client.location_address
+    },
+    qrcode: plainShift.client.qrcode ? {
+      code_value: plainShift.client.qrcode.code_value,
+      expires_at: plainShift.client.qrcode.expires_at,
+      is_valid: new Date() < new Date(plainShift.client.qrcode.expires_at)
+    } : null,
+    geofence: geofence, // Use the extracted geofence
+    attendance: plainShift.attendances?.[0] || null
+  };
+});
     
     res.json({
       success: true,
