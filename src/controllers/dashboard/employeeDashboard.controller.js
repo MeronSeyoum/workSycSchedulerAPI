@@ -13,6 +13,17 @@ const getEmployeeId = async (userId) => {
   return employee?.id || null;
 };
 
+// Helper: Get Monday of the current week
+const getMondayOfCurrentWeek = () => {
+  const today = dayjs();
+  return today.subtract(today.day() === 0 ? 6 : today.day() - 1, 'day').startOf('day');
+};
+
+// Helper: Get Monday of the previous week
+const getMondayOfPreviousWeek = () => {
+  return getMondayOfCurrentWeek().subtract(7, 'day');
+};
+
 // Dashboard Statistics
 const getDashboardStats = async (req, res) => {
   try {
@@ -21,31 +32,49 @@ const getDashboardStats = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Employee not found' });
     }
 
-    const currentMonth = dayjs().startOf('month').toDate();
+    // Get Monday of previous and current week
+    const previousWeekMonday = getMondayOfPreviousWeek();
+    const currentWeekMonday = getMondayOfCurrentWeek();
+    const currentWeekSunday = currentWeekMonday.add(6, 'day').endOf('day');
 
-    const [totalShifts, totalHours] = await Promise.all([
+    // Bi-weekly range: Monday of previous week to Sunday of current week
+    const biWeeklyStart = previousWeekMonday.toDate();
+    const biWeeklyEnd = currentWeekSunday.toDate();
+
+    const [totalShifts, totalHours, upcomingShift] = await Promise.all([
+      // Bi-weekly shifts count
       EmployeeShift.count({
         where: { employee_id: employeeId },
         include: [
           {
             model: Shift,
             as: 'shift',
-            where: { date: { [Op.gte]: currentMonth } },
+            where: { 
+              date: { 
+                [Op.gte]: dayjs(biWeeklyStart).format('YYYY-MM-DD'),
+                [Op.lte]: dayjs(biWeeklyEnd).format('YYYY-MM-DD')
+              }
+            },
           },
         ],
       }),
 
+      // Bi-weekly hours
       Attendance.sum('hours', {
         where: {
           employee_id: employeeId,
           clock_out_time: { [Op.ne]: null },
-          created_at: { [Op.gte]: currentMonth },
+          clock_in_time: { 
+            [Op.gte]: biWeeklyStart,
+            [Op.lte]: biWeeklyEnd
+          },
         },
       }),
+
+      getNextUpcomingShift(employeeId),
     ]);
 
     const chartData = await getWeeklyChartData(employeeId);
-    const upcomingShift = await getNextUpcomingShift(employeeId);
 
     res.json({
       success: true,
@@ -132,56 +161,18 @@ const getTodaysShifts = async (req, res) => {
 };
 
 // Helper Functions
-// const getWeeklyChartData = async (employeeId) => {
-//   const chartData = Array(14).fill(0);
-//   const dateRanges = Array.from({ length: 14 }, (_, i) => ({
-//     start: dayjs()
-//       .subtract(13 - i, 'day')
-//       .startOf('day')
-//       .toDate(),
-//     end: dayjs()
-//       .subtract(13 - i, 'day')
-//       .endOf('day')
-//       .toDate(),
-//   }));
-
-//   const dailyHours = await Promise.all(
-//     dateRanges.map((range) =>
-//       Attendance.sum('hours', {
-//         where: {
-//           employee_id: employeeId,
-//           clock_out_time: { [Op.ne]: null },
-//           clock_in_time: { [Op.between]: [range.start, range.end] },
-//         },
-//       })
-//     )
-//   );
-
-//   return dailyHours.map((hours) => roundToDecimal(hours, 1));
-// };
 const getWeeklyChartData = async (employeeId) => {
-  // Get the current date and find the most recent Sunday
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  // Get Monday of previous week and current week
+  const previousWeekMonday = getMondayOfPreviousWeek();
+  const currentWeekMonday = getMondayOfCurrentWeek();
   
-  // Calculate the date of the most recent Sunday
-  const mostRecentSunday = new Date(today);
-  mostRecentSunday.setDate(today.getDate() - dayOfWeek);
-  mostRecentSunday.setHours(0, 0, 0, 0);
-  
-  // Create date ranges for the last 2 full weeks (Sunday to Saturday)
+  // Create 14-day range starting from Monday of previous week
   const dateRanges = Array.from({ length: 14 }, (_, i) => {
-    const weekOffset = Math.floor(i / 7); // 0 for current week, 1 for previous week
-    const dayInWeek = i % 7; // 0-6 for Sunday to Saturday
-    
-    const date = new Date(mostRecentSunday);
-    date.setDate(mostRecentSunday.getDate() - (7 * (1 - weekOffset)) + dayInWeek);
-    
+    const date = previousWeekMonday.add(i, 'day');
     return {
-      start: dayjs(date).startOf('day').toDate(),
-      end: dayjs(date).endOf('day').toDate(),
-      week: weekOffset,
-      day: dayInWeek
+      start: date.startOf('day').toDate(),
+      end: date.endOf('day').toDate(),
+      dateString: date.format('YYYY-MM-DD'),
     };
   });
 
@@ -192,7 +183,10 @@ const getWeeklyChartData = async (employeeId) => {
         where: {
           employee_id: employeeId,
           clock_out_time: { [Op.ne]: null },
-          clock_in_time: { [Op.between]: [range.start, range.end] },
+          clock_in_time: { 
+            [Op.gte]: range.start,
+            [Op.lte]: range.end
+          },
         },
       })
     )
@@ -202,9 +196,11 @@ const getWeeklyChartData = async (employeeId) => {
 };
 
 const getNextUpcomingShift = async (employeeId) => {
-  const shift = await Shift.findOne({
+  // First, try to get today's shifts
+  const today = dayjs().format('YYYY-MM-DD');
+  let shift = await Shift.findOne({
     where: {
-      date: { [Op.gte]: dayjs().format('YYYY-MM-DD') },
+      date: today,
     },
     include: [
       {
@@ -230,10 +226,45 @@ const getNextUpcomingShift = async (employeeId) => {
       },
     ],
     order: [
-      ['date', 'ASC'],
       ['start_time', 'ASC'],
     ],
   });
+
+  // If no shift today, get the next upcoming shift
+  if (!shift) {
+    shift = await Shift.findOne({
+      where: {
+        date: { [Op.gt]: today },
+      },
+      include: [
+        {
+          model: EmployeeShift,
+          as: 'employee_shifts',
+          where: {
+            employee_id: employeeId,
+            status: 'scheduled',
+          },
+          required: true,
+        },
+        {
+          model: Client,
+          as: 'client',
+          attributes: ['business_name', 'location_address'],
+        },
+        {
+          model: Attendance,
+          as: 'attendances',
+          where: { employee_id: employeeId },
+          required: false,
+          separate: true,
+        },
+      ],
+      order: [
+        ['date', 'ASC'],
+        ['start_time', 'ASC'],
+      ],
+    });
+  }
 
   return shift ? formatShiftData(shift) : null;
 };
@@ -248,7 +279,7 @@ const formatProfileData = (employee) => ({
 });
 
 const formatShiftData = (shift) => {
-  const primaryAttendance = shift.attendances?.[0]; // Get most recent attendance
+  const primaryAttendance = shift.attendances?.[0];
 
   return {
     id: shift.id,
@@ -277,16 +308,6 @@ const formatShiftData = (shift) => {
   };
 };
 
-// const formatShiftData = (shift) => ({
-//   id: shift.id,
-//   date: shift.date,
-//   startTime: shift.start_time,
-//   endTime: shift.end_time,
-//   location: shift.client.business_name,
-//   address: shift.client.location_address,
-//   status: shift.employee_shifts[0].status
-// });
-
 const roundToDecimal = (value, decimals) => (value ? Math.round(value * 10 ** decimals) / 10 ** decimals : 0);
 
 const calculateEarnings = (hours, rate = 15) => Math.round((hours || 0) * rate);
@@ -299,7 +320,6 @@ const handleErrorResponse = (res, error) => {
   });
 };
 
-// Export all controller functions
 module.exports = {
   getDashboardStats,
   getEmployeeProfile,
