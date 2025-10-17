@@ -10,4 +10,7 @@ module.exports.employeeDashboardValidation = require('./employee/employeeDashboa
 module.exports.notificationValidation = require('./notification/notification.validation');
 module.exports.geofenceValidation = require('./geofence/geofence.validation');
 module.exports.chatValidation = require('./chat/chat.validation');
+module.exports.taskValidation = require('./task/task.validation');
+module.exports.shiftPhotoValidation = require('./task/shiftPhoto.validation');
+module.exports.photoComplaintValidation = require('./task/photoComplaint.validation');
 

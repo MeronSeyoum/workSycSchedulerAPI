@@ -21,6 +21,7 @@
   ],
   "license": "ISC",
   "dependencies": {
+    "cloudinary": "^2.7.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -36,6 +37,7 @@
     "joi": "^17.9.2",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
+    "multer": "^2.0.2",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "qrcode": "^1.5.4",

@@ -17,6 +17,8 @@ const xss = require('xss-clean');
 const compression = require('compression');
 const http = require('http');
 const socketio = require('socket.io');
+const cloudinary = require('cloudinary').v2;
+
 
 // ==================== CUSTOM MODULES ====================
 const { errorConverter, errorHandler } = require('./src/middlewares/error');
@@ -92,6 +94,15 @@ app.set('io', io);
 
 // Socket.io connection handling with error prevention
 configureSocketIO(io);
+
+
+// ==================== cloudinary SETUP ====================
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // ==================== ROUTES SETUP ====================
 
@@ -279,7 +290,11 @@ async function connectDatabase() {
       'EmployeeShift',  // Depends on Employee and Shift
       'Attendance',     // Depends on Employee and Shift
       'Notification',   // Depends on User
-      'Chat'            // Depends on User (sender_id, recipient_id)
+      'Chat',            // Depends on User (sender_id, recipient_id)
+      'task',
+      'shiftPhoto',
+      'PhotoComplaint'
+
     ];
     
     // Filter to only include models that exist

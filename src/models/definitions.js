@@ -1,4 +1,3 @@
-
 const definitions = (sequelize, Sequelize) => {
   const db = {
     Sequelize,
@@ -18,6 +17,9 @@ const definitions = (sequelize, Sequelize) => {
   db.EmployeeShift = require('./EmployeeShift.model')(sequelize, Sequelize);
   db.Notification = require('./Notification.model')(sequelize, Sequelize);
   db.Chat = require('./chat.model')(sequelize, Sequelize);
+  db.ShiftPhoto = require('./shiftPhoto.model')(sequelize, Sequelize);
+  db.PhotoComplaint = require('./photoComplaint.model')(sequelize, Sequelize);
+  db.Task = require('./Task.model')(sequelize, Sequelize);
 
   // ====================
   // 1. USER ASSOCIATIONS
@@ -55,7 +57,7 @@ const definitions = (sequelize, Sequelize) => {
   db.User.hasMany(db.Chat, {
     foreignKey: 'recipient_id',
     as: 'received_messages',
-    onDelete: 'SET NULL' // Keep messages even if recipient is deleted
+    onDelete: 'SET NULL'
   });
 
   // ========================
@@ -136,10 +138,10 @@ const definitions = (sequelize, Sequelize) => {
     onDelete: 'CASCADE'
   });
 
-  // Client has ONE QRCode (critical change)
+  // Client has ONE QRCode
   db.Client.hasOne(db.QRCode, {
     foreignKey: 'client_id',
-    as: 'qrcode',  // Singular because it's hasOne
+    as: 'qrcode',
     onDelete: 'CASCADE'
   });
 
@@ -209,22 +211,103 @@ const definitions = (sequelize, Sequelize) => {
     as: 'shift'
   });
 
-
   // ========================
   // 11. CHAT ASSOCIATIONS
   // ========================
   db.Chat.belongsTo(db.User, {
     foreignKey: 'sender_id',
     as: 'sender',
-    onDelete: 'CASCADE' // Delete messages if sender is deleted
+    onDelete: 'CASCADE'
   });
   
   db.Chat.belongsTo(db.User, {
     foreignKey: 'recipient_id',
     as: 'recipient',
-    onDelete: 'SET NULL' // Keep messages but nullify recipient if user is deleted
+    onDelete: 'SET NULL'
   });
-  
+
+  // ===========================
+  // 12. TASK ASSOCIATIONS
+  // ===========================
+  db.Task.belongsTo(db.Client, {
+    foreignKey: 'client_id',
+    as: 'client'
+  });
+
+  db.Task.belongsTo(db.User, {
+    foreignKey: 'created_by',
+    as: 'creator'
+  });
+
+  db.Task.hasMany(db.ShiftPhoto, {
+    foreignKey: 'task_id',
+    as: 'shift_photos'
+  });
+
+  // ===========================
+  // 13. SHIFT PHOTO ASSOCIATIONS
+  // ===========================
+  db.ShiftPhoto.belongsTo(db.Shift, {
+    foreignKey: 'shift_id',
+    as: 'shift',
+    onDelete: 'CASCADE'
+  });
+
+  db.ShiftPhoto.belongsTo(db.Employee, {
+    foreignKey: 'employee_id',
+    as: 'employee',
+    onDelete: 'CASCADE'
+  });
+
+  db.ShiftPhoto.belongsTo(db.Task, {
+    foreignKey: 'task_id',
+    as: 'task',
+    onDelete: 'SET NULL'
+  });
+
+  db.ShiftPhoto.hasMany(db.PhotoComplaint, {
+    foreignKey: 'photo_id',
+    as: 'complaints',
+    onDelete: 'CASCADE'
+  });
+
+  // Add to Shift associations for photos
+  db.Shift.hasMany(db.ShiftPhoto, {
+    foreignKey: 'shift_id',
+    as: 'photos',
+    onDelete: 'CASCADE'
+  });
+
+  // Add to Employee associations for photos
+  db.Employee.hasMany(db.ShiftPhoto, {
+    foreignKey: 'employee_id',
+    as: 'submitted_photos',
+    onDelete: 'CASCADE'
+  });
+
+  // ================================
+  // 14. PHOTO COMPLAINT ASSOCIATIONS
+  // ================================
+  db.PhotoComplaint.belongsTo(db.ShiftPhoto, {
+    foreignKey: 'photo_id',
+    as: 'ShiftPhoto',
+    onDelete: 'CASCADE'
+  });
+
+  // ✅ FIXED: PhotoComplaint should belong to Client, not User
+  db.PhotoComplaint.belongsTo(db.Client, {
+    foreignKey: 'client_id',
+    as: 'client',
+    onDelete: 'CASCADE'
+  });
+
+  // Add to Client associations for complaints
+  db.Client.hasMany(db.PhotoComplaint, {
+    foreignKey: 'client_id',
+    as: 'filed_complaints',
+    onDelete: 'CASCADE'
+  });
+
   return db;
 };
 

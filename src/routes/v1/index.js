@@ -15,8 +15,11 @@ const usersRoute = require('./user.route');
 const attendanceRoute = require('./attendance.route');
 const employeeDashboardRoute = require('./employeeDashboard.route');
 const notificationsRoute = require('./notification.route');
-const chatRoute = require('./chat.route'); // Add this line
-const geofencesRoute =require('./geofence.route')
+const chatRoute = require('./chat.route');
+const geofencesRoute = require('./geofence.route');
+const shiftPhotosRoute = require('./shiftPhotos.route'); 
+const photoComplaintsRoute = require('./photoComplaint.route');
+const taskRoutes = require('./task.route');
 
 const devRoutes = [
   {
@@ -67,17 +70,29 @@ const userRoutes = [
     route: employeeDashboardRoute,
   },
   {
-    path: "/notifications",
+    path: '/notifications',
     route: notificationsRoute,
   },
   {
-path: "/geofences",
-route: geofencesRoute,
+    path: '/geofences',
+    route: geofencesRoute,
   },
   {
-    path: "/chat", // Add this line
-    route: chatRoute, // Add this line
-  }
+    path: '/chat',
+    route: chatRoute,
+  },
+ {
+    path: '/shiftPhotos',
+    route: shiftPhotosRoute, // ✅ This should point to your shiftPhoto.route.js
+  },
+  {
+    path: '/photo-complaints',
+    route: photoComplaintsRoute,
+  },
+  {
+    path: '/tasks',
+    route: taskRoutes,
+  },
 ];
 
 userRoutes.forEach((route) => {

@@ -1,18 +1,27 @@
-// models/PhotoComplaint.js
-module.exports = (sequelize, DataTypes) => {
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
   const PhotoComplaint = sequelize.define('PhotoComplaint', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    photoId: {
+    photo_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: 'shift_photos',
+        key: 'id'
+      }
     },
-    clientId: {
-      type: DataTypes.UUID,
+    client_id: {
+      type: DataTypes.INTEGER, // Changed to INTEGER to match User.id
       allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
     },
     reason: {
       type: DataTypes.ENUM(
@@ -32,29 +41,37 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('filed', 'under_review', 'resolved', 'dismissed'),
       defaultValue: 'filed',
     },
-    resolvedAt: {
+    resolved_at: {
       type: DataTypes.DATE,
+      allowNull: true,
     },
-    resolutionNote: {
+    resolution_note: {
       type: DataTypes.TEXT,
+      allowNull: true,
     },
-    createdAt: {
+    created_at: {
       type: DataTypes.DATE,
+      allowNull: false,
       defaultValue: DataTypes.NOW,
     },
-    updatedAt: {
+    updated_at: {
       type: DataTypes.DATE,
+      allowNull: false,
       defaultValue: DataTypes.NOW,
     },
   }, {
     timestamps: true,
     tableName: 'photo_complaints',
+    underscored: true,
   });
 
   PhotoComplaint.associate = (models) => {
-    PhotoComplaint.belongsTo(models.ShiftPhoto, { foreignKey: 'photoId' });
+    PhotoComplaint.belongsTo(models.ShiftPhoto, { 
+      foreignKey: 'photo_id',
+      as: 'ShiftPhoto'
+    });
     PhotoComplaint.belongsTo(models.User, { 
-      foreignKey: 'clientId', 
+      foreignKey: 'client_id', 
       as: 'client' 
     });
   };
