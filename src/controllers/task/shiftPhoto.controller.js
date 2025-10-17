@@ -166,16 +166,16 @@ exports.create = async (req, res) => {
       // Convert buffer to base64 data URI for Cloudinary
       const fileStr = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
       
-      uploadResult = await cloudinary.uploader.upload(fileStr, {
-        folder: `shift-photos/${shift_id}`,
-        resource_type: 'auto',
-        transformation: [
-          { width: 1200, height: 1200, crop: 'limit' },
-          { quality: 'auto:good' }
-        ]
-      });
+      // uploadResult = await cloudinary.uploader.upload(fileStr, {
+      //   folder: `shift-photos/${shift_id}`,
+      //   resource_type: 'auto',
+      //   transformation: [
+      //     { width: 1200, height: 1200, crop: 'limit' },
+      //     { quality: 'auto:good' }
+      //   ]
+      // });
 
-      console.log('Cloudinary upload successful:', uploadResult.public_id);
+      // console.log('Cloudinary upload successful:', uploadResult.public_id);
     } catch (uploadError) {
       console.error('Cloudinary upload error:', uploadError);
       return res.status(500).json({ 
@@ -188,8 +188,8 @@ exports.create = async (req, res) => {
     const photo = await ShiftPhoto.create({
       shift_id,
       employee_id: employee.id, // Use the actual employee ID, not user ID
-      photo_url: uploadResult.secure_url,
-      public_id: uploadResult.public_id,
+      photo_url: uploadResult.secure_url || '',
+      public_id: uploadResult.public_id  || '',
       description: description || null,
       custom_task_name: task_name || null,
       task_id: task_id || null,
