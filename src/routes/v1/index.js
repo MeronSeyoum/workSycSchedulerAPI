@@ -82,7 +82,7 @@ const userRoutes = [
     route: chatRoute,
   },
  {
-    path: '/shiftPhotos',
+    path: '/shift-photos',
     route: shiftPhotosRoute, // ✅ This should point to your shiftPhoto.route.js
   },
   {
