@@ -17,7 +17,7 @@ const definitions = (sequelize, Sequelize) => {
   db.EmployeeShift = require('./EmployeeShift.model')(sequelize, Sequelize);
   db.Notification = require('./Notification.model')(sequelize, Sequelize);
   db.Chat = require('./chat.model')(sequelize, Sequelize);
-  db.ShiftPhoto = require('./shiftPhoto.model')(sequelize, Sequelize);
+  db.ShiftPhoto = require('./ShiftPhoto.model')(sequelize, Sequelize);
   db.PhotoComplaint = require('./photoComplaint.model')(sequelize, Sequelize);
   db.Task = require('./Task.model')(sequelize, Sequelize);
 
