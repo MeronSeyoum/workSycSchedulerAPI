@@ -1,12 +1,6 @@
 const { ShiftPhoto, Shift, Employee, User, Task, PhotoComplaint, Client } = require('../../models');
 const cloudinary = require('cloudinary').v2;
 
-// Configure Cloudinary (should be in your config file)
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET
-// });
 
 /**
  * @swagger
@@ -127,10 +121,7 @@ exports.getById = async (req, res) => {
  */
 exports.create = async (req, res) => {
   try {
-    console.log('Create photo request received');
-    console.log('Body:', req.body);
-    console.log('File:', req.file ? 'Present' : 'Not present');
-
+   
     const { shift_id, employee_id, description, task_name, task_id } = req.body;
 
     // Check if file was uploaded (using multer or similar middleware)
@@ -166,16 +157,16 @@ exports.create = async (req, res) => {
       // Convert buffer to base64 data URI for Cloudinary
       const fileStr = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
       
-      // uploadResult = await cloudinary.uploader.upload(fileStr, {
-      //   folder: `shift-photos/${shift_id}`,
-      //   resource_type: 'auto',
-      //   transformation: [
-      //     { width: 1200, height: 1200, crop: 'limit' },
-      //     { quality: 'auto:good' }
-      //   ]
-      // });
+      uploadResult = await cloudinary.uploader.upload(fileStr, {
+        folder: `shift-photos/${shift_id}`,
+        resource_type: 'auto',
+        transformation: [
+          { width: 1200, height: 1200, crop: 'limit' },
+          { quality: 'auto:good' }
+        ]
+      });
 
-      // console.log('Cloudinary upload successful:', uploadResult.public_id);
+      console.log('Cloudinary upload successful:', uploadResult.public_id);
     } catch (uploadError) {
       console.error('Cloudinary upload error:', uploadError);
       return res.status(500).json({ 

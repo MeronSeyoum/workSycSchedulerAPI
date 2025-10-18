@@ -17,7 +17,7 @@ const xss = require('xss-clean');
 const compression = require('compression');
 const http = require('http');
 const socketio = require('socket.io');
-// const cloudinary = require('cloudinary').v2;
+const cloudinary = require('cloudinary').v2;
 
 
 // ==================== CUSTOM MODULES ====================
@@ -98,11 +98,11 @@ configureSocketIO(io);
 
 // ==================== cloudinary SETUP ====================
 
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET
-// });
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // ==================== ROUTES SETUP ====================
 
@@ -292,7 +292,7 @@ async function connectDatabase() {
       'Notification',   // Depends on User
       'Chat',            // Depends on User (sender_id, recipient_id)
       'task',
-      'shiftPhoto',
+      'ShiftPhoto',
       'PhotoComplaint'
 
     ];

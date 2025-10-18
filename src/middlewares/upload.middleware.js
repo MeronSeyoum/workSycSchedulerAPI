@@ -1,12 +1,10 @@
-// middlewares/upload.middleware.js
 const multer = require('multer');
 
-// Configure multer to use memory storage (stores file in buffer)
+// Configure multer to use memory storage
 const storage = multer.memoryStorage();
 
-// File filter to only accept images
+// File filter - accept only images
 const fileFilter = (req, file, cb) => {
-  // Accept images only
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
@@ -14,17 +12,16 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Create multer upload instance
+// Create multer instance
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    fileSize: 10 * 1024 * 1024, // 10MB max
   },
 });
 
-// Export middleware for single file upload
 module.exports = {
-  uploadSingle: upload.single('photo'), // 'photo' must match the FormData field name
-  uploadMultiple: upload.array('photos', 10), // For multiple photos (max 10)
+  uploadSingle: upload.single('photo'),
+  uploadMultiple: upload.array('photos', 10),
 };

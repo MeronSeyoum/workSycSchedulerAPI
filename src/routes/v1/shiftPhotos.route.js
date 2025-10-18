@@ -1,4 +1,4 @@
-// routes/shiftPhotos.route.js
+// routes/shift-photos.route.js
 const express = require('express');
 const { shiftPhotoValidation } = require('../../validations');
 const shiftPhotoController = require('../../controllers/task/shiftPhoto.controller');
@@ -8,7 +8,7 @@ const { uploadSingle } = require('../../middlewares/upload.middleware'); // ✅ 
 
 const router = express.Router();
 
-
+console.log("shift-photos routes loaded");
 
 // GET routes
 router.get('/', authVerify, validate(shiftPhotoValidation.getPhotos), shiftPhotoController.getAll);
@@ -19,7 +19,7 @@ router.get('/:id', authVerify, validate(shiftPhotoValidation.byId), shiftPhotoCo
 router.post('/', 
   authVerify, 
   uploadSingle, // ✅ Handles multipart/form-data and file upload
-   validate(shiftPhotoValidation.create), // ⚠️ You may need to update validation to handle file uploads
+  validate(shiftPhotoValidation.create), // ⚠️ You may need to update validation to handle file uploads
   shiftPhotoController.create
 );
 
